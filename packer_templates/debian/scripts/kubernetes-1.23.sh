@@ -20,11 +20,6 @@ net.ipv4.ip_forward = 1
 EOF
 sysctl --system
 
-# echo '* Install iptables and switch it iptables to legacy version ...'
-# apt-get update -qq >/dev/null
-# DEBIAN_FRONTEND=noninteractive apt-get install -y -qq iptables jq >/dev/null
-# update-alternatives --set iptables /usr/sbin/iptables-legacy
-
 echo '* Turn off the swap ...'
 swapoff -a
 sed -i '/swap/ s/^/#/' /etc/fstab
@@ -44,6 +39,13 @@ EOF
 systemctl enable docker
 systemctl daemon-reload
 systemctl restart docker
+
+pre_reqs="apt-transport-https ca-certificates curl"
+
+echo "Updateing the apt package index and install packages to allow apt to use a repository over HTTPS"
+
+apt-get update -qq >/dev/null
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $pre_reqs
 
 echo '* Download and install the Kubernetes repository key ...'
 curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
