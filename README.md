@@ -10,7 +10,7 @@
 
 #### Using `packer`
 
-To build an Ubuntu 18.04 box for only the VirtualBox provider
+To build an Ubuntu 20.04 box for only the VirtualBox provider
 
 ```bash
 cd packer_templates/ubuntu
