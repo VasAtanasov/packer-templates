@@ -8,8 +8,6 @@
 - [Vagrant](https://www.vagrantup.com/)
 - [VirtualBox](https://www.virtualbox.org/)
 
-#### Using `packer`
-
 To build an Ubuntu 20.04 box for only the VirtualBox provider
 
 ```bash
