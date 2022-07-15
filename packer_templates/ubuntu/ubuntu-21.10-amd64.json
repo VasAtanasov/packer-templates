@@ -44,60 +44,23 @@
             "type": "virtualbox-iso",
             "virtualbox_version_file": ".vbox_version",
             "vm_name": "{{ user `template` }}"
-        },
-        {
-            "boot_command": [
-                " <wait>",
-                " <wait>",
-                " <wait>",
-                " <wait>",
-                " <wait>",
-                "c",
-                "<wait>",
-                "set gfxpayload=keep",
-                "<enter><wait>",
-                "linux /casper/vmlinuz quiet<wait>",
-                " autoinstall<wait>",
-                " ds=nocloud-net<wait>",
-                "\\;s=http://<wait>",
-                "{{.HTTPIP}}<wait>",
-                ":{{.HTTPPort}}/<wait>",
-                " ---",
-                "<enter><wait>",
-                "initrd /casper/initrd<wait>",
-                "<enter><wait>",
-                "boot<enter><wait>"
-            ],
-            "boot_wait": "5s",
-            "cpus": "{{ user `cpus` }}",
-            "disk_size": "{{user `disk_size`}}",
-            "guest_os_type": "ubuntu-64",
-            "headless": "{{ user `headless` }}",
-            "http_directory": "{{user `http_directory`}}",
-            "iso_checksum": "{{user `iso_checksum`}}",
-            "iso_url": "{{user `mirror`}}/{{user `mirror_directory`}}/{{user `iso_name`}}",
-            "memory": "{{ user `memory` }}",
-            "output_directory": "{{ user `build_directory` }}/packer-{{user `template`}}-vmware",
-            "shutdown_command": "echo 'vagrant' | sudo -S shutdown -P now",
-            "ssh_password": "vagrant",
-            "ssh_port": 22,
-            "ssh_timeout": "10000s",
-            "ssh_username": "vagrant",
-            "tools_upload_flavor": "linux",
-            "type": "vmware-iso",
-            "vm_name": "{{ user `template` }}",
-            "vmx_data": {
-                "cpuid.coresPerSocket": "1",
-                "ethernet0.pciSlotNumber": "32"
-            },
-            "vmx_remove_ethernet_interfaces": true
         }
     ],
     "post-processors": [
-        {
-            "output": "{{ user `build_directory` }}/{{user `box_basename`}}.{{.Provider}}.box",
-            "type": "vagrant"
-        }
+        [
+            {
+                "output": "{{ user `build_directory` }}/{{user `box_basename`}}.{{.Provider}}.box",
+                "type": "vagrant",
+                "compression_level": "9",
+                "vagrantfile_template": "Vagrantfile"
+            },
+            {
+                "type": "vagrant-cloud",
+                "box_tag": "vasatanasov/{{user `box_basename`}}",
+                "version": "{{user `version`}}",
+                "version_description": "Ubuntu 20.04 Vagrant box. Built with: virtualbox: 6.1.34, packer: 1.8.2."
+            }
+        ]
     ],
     "provisioners": [
         {
@@ -116,8 +79,6 @@
                 "{{template_dir}}/scripts/sudoers.sh",
                 "{{template_dir}}/scripts/vagrant.sh",
                 "{{template_dir}}/../_common/virtualbox.sh",
-                "{{template_dir}}/scripts/vmware.sh",
-                "{{template_dir}}/scripts/hyperv.sh",
                 "{{template_dir}}/scripts/cleanup.sh",
                 "{{template_dir}}/../_common/minimize.sh"
             ],
@@ -127,7 +88,6 @@
     "variables": {
         "box_basename": "ubuntu-21.10",
         "build_directory": "../../builds",
-        "build_timestamp": "{{isotime \"20060102150405\"}}",
         "cpus": "2",
         "disk_size": "65536",
         "git_revision": "__unknown_git_revision__",
@@ -136,18 +96,14 @@
         "http_directory": "{{template_dir}}/http",
         "http_proxy": "{{env `http_proxy`}}",
         "https_proxy": "{{env `https_proxy`}}",
-        "hyperv_generation": "2",
-        "hyperv_switch": "bento",
         "iso_checksum": "e84f546dfc6743f24e8b1e15db9cc2d2c698ec57d9adfb852971772d1ce692d4",
         "iso_name": "ubuntu-21.10-live-server-amd64.iso",
         "memory": "1024",
         "mirror": "http://releases.ubuntu.com",
         "mirror_directory": "impish",
-        "name": "ubuntu-21.10",
         "no_proxy": "{{env `no_proxy`}}",
         "preseed_path": "preseed.cfg",
-        "qemu_display": "none",
         "template": "ubuntu-21.10-amd64",
-        "version": "TIMESTAMP"
+        "version": ""
     }
 }

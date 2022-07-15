@@ -40,18 +40,26 @@ echo "Installing Docker Engine"
 update_packages
 DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io
 
-CURRENT_USER=${CURRENT_USER:-$USER}
-
 if grep -q "docker" /etc/group; then
     echo "Docker group alredy exists, skipping creation"
 else
     sudo groupadd docker
 fi
 
-EXISTS=$(grep -c "^${CURRENT_USER}:" /etc/passwd)
-if [ $EXISTS -eq 0 ]; then
-    echo "The user ${CURRENT_USER} does not exist"
+VAGRANT_USER=vagrant
+EXISTS=$(grep -c "^${VAGRANT_USER}:" /etc/passwd)
+if [ $VAGRANT_USER -eq 0 ]; then
+    echo "The user ${VAGRANT_USER} does not exist"
 else
-    echo "The user ${CURRENT_USER} exists"
-    sudo gpasswd -a ${CURRENT_USER} docker
+    echo "The user ${VAGRANT_USER} exists"
+    sudo gpasswd -a ${VAGRANT_USER} docker
+fi
+
+ROOT_USER=root
+EXISTS=$(grep -c "^${ROOT_USER}:" /etc/passwd)
+if [ $EXISTS -eq 0 ]; then
+    echo "The user ${ROOT_USER} does not exist"
+else
+    echo "The user ${ROOT_USER} exists"
+    sudo gpasswd -a ${ROOT_USER} docker
 fi
