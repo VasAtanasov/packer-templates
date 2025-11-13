@@ -19,9 +19,9 @@ echo ""
 # Set environment variables (same as Packer)
 export LIB_DIR=/usr/local/lib/k8s
 export LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh
-export K8S_VERSION="1.28"
+export K8S_VERSION="1.33"
 export CONTAINER_RUNTIME="containerd"
-export CRIO_VERSION="1.28"
+export CRIO_VERSION="1.33"
 export VARIANT="k8s-node"
 export DEBIAN_FRONTEND=noninteractive
 

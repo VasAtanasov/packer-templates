@@ -1,6 +1,6 @@
 ---
 title: Bash Script Tests
-version: 1.0.0
+version: 1.1.0
 status: Active
 scope: tests/scripts
 ---
@@ -24,11 +24,16 @@ VAGRANT_VAGRANTFILE=Vagrantfile.test vagrant destroy -f
 ## What It Does
 - Installs `bats` in the VM
 - Installs `lib.sh` to `/usr/local/lib/k8s/lib.sh`
-- Runs all tests under `tests/scripts/`
+- Sets test environment variables:
+  - `SCRIPTS_DIR=/scripts` - Location of provisioning scripts
+  - `LIB_SH=/usr/local/lib/k8s/lib.sh` - Path to lib.sh
+  - `LIB_DIR=/usr/local/lib/k8s` - Library directory
+- Runs all tests under `tests/`
 
 ## Doc Changelog
 
-| Version | Date       | Changes                     |
-|---------|------------|-----------------------------|
-| 1.0.0   | 2025-11-13 | Initial testing instructions |
+| Version | Date       | Changes                                                       |
+|---------|------------|---------------------------------------------------------------|
+| 1.1.0   | 2025-11-13 | Added environment variables for flexible script path testing |
+| 1.0.0   | 2025-11-13 | Initial testing instructions                                  |
 

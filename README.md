@@ -41,19 +41,20 @@ make debian-12        # Debian 12 x86_64 (recommended)
 
 ## Common Commands
 
-| Command | Description |
-|---------|-------------|
-| `make debian-12` | Build Debian 12 x86_64 box (recommended) |
-| `make debian-13` | Build Debian 13 x86_64 box |
-| `make build TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl` | Build specific template |
-| `make validate` | Validate all templates |
-| `make clean` | Remove build artifacts |
-| `make list-templates` | Show available templates |
-| `make help` | Show all available commands |
+| Command                                                   | Description                              |
+|-----------------------------------------------------------|------------------------------------------|
+| `make debian-12`                                          | Build Debian 12 x86_64 box (recommended) |
+| `make debian-13`                                          | Build Debian 13 x86_64 box               |
+| `make build TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl` | Build specific template                  |
+| `make validate`                                           | Validate all templates                   |
+| `make clean`                                              | Remove build artifacts                   |
+| `make list-templates`                                     | Show available templates                 |
+| `make help`                                               | Show all available commands              |
 
 ## Build Process (3 Phases)
 
 Provisioner strategy:
+
 - Upload `packer_templates/scripts/` → `/tmp/packer-scripts` (keeps relative
   layout intact for simple cases).
 - Install `_common/lib.sh` from the uploaded tree to a stable, root-owned path:
@@ -65,15 +66,18 @@ Provisioner strategy:
   so the box doesn’t contain build-only helpers.
 
 ### Phase 1: System Preparation
+
 - Update all packages
 - Disable automatic updates (for reproducible builds)
 
 ### Phase 2: OS Configuration
+
 - Install Vagrant user and SSH configuration
 - Configure networking, sudoers, systemd
 - Install VirtualBox Guest Additions (policy: install by default)
 
 ### Phase 3: Cleanup & Minimization
+
 - Remove unnecessary packages
 - Clear logs and temporary files
 - Zero free space for better compression
@@ -107,15 +111,15 @@ packer build -var-file=debian-12-x86_64.pkrvars.hcl ../../packer_templates
 Edit or create a `.pkrvars.hcl` in `os_pkrvars/<os_name>/`:
 
 ```hcl
-os_name                   = "debian"
-os_version                = "12.12"
-os_arch                   = "x86_64" # or aarch64
-iso_url                   = "https://cdimage.debian.org/..."
-iso_checksum              = "file:https://cdimage.debian.org/.../SHA256SUMS"
-vbox_guest_os_type        = "Debian12_64"
+os_name            = "debian"
+os_version         = "12.12"
+os_arch = "x86_64" # or aarch64
+iso_url            = "https://cdimage.debian.org/..."
+iso_checksum       = "file:https://cdimage.debian.org/.../SHA256SUMS"
+vbox_guest_os_type = "Debian12_64"
 vbox_guest_additions_mode = "attach" # or "upload"; ensure the install script runs
 vbox_guest_additions_path = "VBoxGuestAdditions_{{ .Version }}.iso" # default
-boot_command              = [
+boot_command = [
   "<wait><esc><wait>auto preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/debian/preseed.cfg netcfg/get_hostname={{ .Name }}<enter>"
 ]
 
@@ -143,6 +147,7 @@ Set `headless = false` in your `.pkrvars.hcl` to view the VirtualBox GUI.
 ## Simplified Architecture
 
 Files kept:
+
 ```
 packer_templates/
   main.pkr.hcl         → variables + source (VirtualBox) + build
@@ -164,6 +169,7 @@ Removed legacy split files (`pkr-variables.pkr.hcl`, `pkr-sources.pkr.hcl`,
 ## Contributing
 
 When making changes:
+
 1. Keep scripts simple and focused
 2. Use `lib.sh` helpers consistently
 3. Make scripts idempotent (safe to re-run)
@@ -176,11 +182,11 @@ When making changes:
 
 ## Doc Changelog
 
-| Version | Date       | Author     | Changes                                                |
-|---------|------------|------------|--------------------------------------------------------|
-| 1.3.0   | 2025-11-13 | repo-maint | Align with current repo state; host-agnostic; GA policy; docs parity |
-| 1.2.1   | 2025-11-12 | repo-maint | Remove lib.sh from final box via cleanup provisioner    |
-| 1.2.0   | 2025-11-12 | repo-maint | Add file+install for lib.sh and pass LIB_DIR/LIB_SH     |
-| 1.1.2   | 2025-11-12 | repo-maint | Ensure lib.sh availability via file+inline provisioners |
-| 1.1.1   | 2025-11-12 | repo-maint | Restore vbox_guest_additions_path variable              |
-| 1.1.0   | 2025-11-12 | repo-maint | Focused on Debian+VirtualBox; pruned legacy HCL files   |
+| Version | Date       | Changes                                                              |
+|---------|------------|----------------------------------------------------------------------|
+| 1.3.0   | 2025-11-13 | Align with current repo state; host-agnostic; GA policy; docs parity |
+| 1.2.1   | 2025-11-12 | Remove lib.sh from final box via cleanup provisioner                 |
+| 1.2.0   | 2025-11-12 | Add file+install for lib.sh and pass LIB_DIR/LIB_SH                  |
+| 1.1.2   | 2025-11-12 | Ensure lib.sh availability via file+inline provisioners              |
+| 1.1.1   | 2025-11-12 | Restore vbox_guest_additions_path variable                           |
+| 1.1.0   | 2025-11-12 | Focused on Debian+VirtualBox; pruned legacy HCL files                |

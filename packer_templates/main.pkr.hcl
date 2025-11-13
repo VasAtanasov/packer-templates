@@ -84,7 +84,7 @@ variable "variant" {
   type    = string
   default = "base"
   validation {
-    condition     = contains(["base", "k8s-node", "docker-host"], var.variant)
+    condition = contains(["base", "k8s-node", "docker-host"], var.variant)
     error_message = "The variant must be 'base', 'k8s-node', or 'docker-host'."
   }
   description = "Box variant: base (minimal), k8s-node (Kubernetes), docker-host (Docker)"
@@ -101,7 +101,7 @@ variable "container_runtime" {
   type    = string
   default = "containerd"
   validation {
-    condition     = contains(["containerd", "cri-o"], var.container_runtime)
+    condition = contains(["containerd", "cri-o"], var.container_runtime)
     error_message = "The container_runtime must be 'containerd' or 'cri-o'."
   }
   description = "Container runtime: containerd or cri-o"
@@ -119,7 +119,7 @@ variable "crio_version" {
 locals {
   box_name         = var.variant == "base" ? "${var.os_name}-${var.os_version}-${var.os_arch}" : "${var.os_name}-${var.os_version}-${var.os_arch}-${var.variant}"
   output_directory = var.output_directory == null ? "${path.root}/../builds/build_files/packer-${var.os_name}-${var.os_version}-${var.os_arch}" : var.output_directory
-  vboxmanage = var.vboxmanage == null ? (
+  vboxmanage       = var.vboxmanage == null ? (
     var.os_arch == "aarch64" ? [
     ["modifyvm", "{{.Name}}", "--chipset", "armv8virtual"],
     ["modifyvm", "{{.Name}}", "--audio-enabled", "off"],
@@ -156,6 +156,7 @@ locals {
 
   // Select variant scripts (empty for base variant)
   selected_variant_scripts = var.variant == "base" ? [] : lookup(local.variant_scripts, var.variant, [])
+  execute_command          = "echo 'vagrant' | {{ .Vars }} sudo -S -E sh -eux '{{ .Path }}'"
 }
 
 // -----------------------------------------------------------------------------
@@ -221,7 +222,7 @@ build {
       "find /usr/local/lib/k8s/scripts -type f -name '*.sh' -exec chmod 0755 {} \\;",
       "chown -R root:root /usr/local/lib/k8s"
     ]
-    execute_command = "sudo -S bash -c '{{ .Vars }} {{ .Path }}'"
+    execute_command = local.execute_command
   }
 
   // Phase 1: System prep (updates, disable unattended upgrades)
@@ -233,7 +234,7 @@ build {
       "LIB_DIR=/usr/local/lib/k8s",
       "LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh",
     ]
-    execute_command   = "sudo -S bash -c '{{ .Vars }} {{ .Path }}'"
+    execute_command   = local.execute_command
     expect_disconnect = true // script may reboot
   }
 
@@ -248,7 +249,7 @@ build {
       "LIB_DIR=/usr/local/lib/k8s",
       "LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh",
     ]
-    execute_command   = "sudo -S bash -c '{{ .Vars }} {{ .Path }}'"
+    execute_command   = local.execute_command
     expect_disconnect = true // may reboot if kernel packages installed
   }
 
@@ -264,7 +265,7 @@ build {
       "LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh",
       "HOME_DIR=/home/vagrant",
     ]
-    execute_command   = "sudo -S bash -c '{{ .Vars }} {{ .Path }}'"
+    execute_command   = local.execute_command
     expect_disconnect = true // may reboot after installation
   }
 
@@ -281,43 +282,36 @@ build {
       "LIB_DIR=/usr/local/lib/k8s",
       "LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh",
     ]
-    execute_command = "sudo -S bash -c '{{ .Vars }} {{ .Path }}'"
+    execute_command = local.execute_command
   }
 
-  // Phase 2d: Variant-specific provisioning (k8s-node)
+  // Phase 2d: Variant-specific provisioning (dynamic based on variant variable)
   provisioner "shell" {
-    only = var.variant == "k8s-node" ? ["virtualbox-iso.vm"] : []
-    inline = [
-      "bash /usr/local/lib/k8s/scripts/variants/k8s-node/prepare.sh",
-      "bash /usr/local/lib/k8s/scripts/variants/k8s-node/configure_kernel.sh",
-      "bash /usr/local/lib/k8s/scripts/variants/k8s-node/install_container_runtime.sh",
-      "bash /usr/local/lib/k8s/scripts/variants/k8s-node/install_kubernetes.sh",
-      "bash /usr/local/lib/k8s/scripts/variants/k8s-node/configure_networking.sh",
-    ]
-    environment_vars = [
-      "LIB_DIR=/usr/local/lib/k8s",
-      "LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh",
-      "K8S_VERSION=${var.kubernetes_version}",
-      "CONTAINER_RUNTIME=${var.container_runtime}",
-      "CRIO_VERSION=${var.crio_version}",
-      "VARIANT=${var.variant}",
-    ]
-    execute_command = "sudo -S bash -c '{{ .Vars }} {{ .Path }}'"
-  }
+    // Only run if variant is not "base" (skip for base boxes)
+    only = var.variant != "base" ? ["virtualbox-iso.vm"] : []
 
-  // Phase 2d: Variant-specific provisioning (docker-host)
-  provisioner "shell" {
-    only = var.variant == "docker-host" ? ["virtualbox-iso.vm"] : []
-    inline = [
-      "bash /usr/local/lib/k8s/scripts/variants/docker-host/install_docker.sh",
-      "bash /usr/local/lib/k8s/scripts/variants/docker-host/configure_docker.sh",
-    ]
-    environment_vars = [
-      "LIB_DIR=/usr/local/lib/k8s",
-      "LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh",
-      "VARIANT=${var.variant}",
-    ]
-    execute_command = "sudo -S bash -c '{{ .Vars }} {{ .Path }}'"
+    // Dynamically build script list based on selected variant
+    // If no scripts (base variant), use a harmless no-op to keep Packer validation happy
+    inline = length(local.selected_variant_scripts) > 0 ? [
+      for script in local.selected_variant_scripts :
+      "bash /usr/local/lib/k8s/scripts/${script}"
+    ] : ["echo 'No variant scripts to run (base variant)'"]
+
+    environment_vars = concat(
+      [
+        "LIB_DIR=/usr/local/lib/k8s",
+        "LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh",
+        "VARIANT=${var.variant}",
+      ],
+      # Add K8s-specific vars only for k8s-node variant
+        var.variant == "k8s-node" ? [
+        "K8S_VERSION=${var.kubernetes_version}",
+        "CONTAINER_RUNTIME=${var.container_runtime}",
+        "CRIO_VERSION=${var.crio_version}",
+      ] : []
+    )
+
+    execute_command = local.execute_command
   }
 
   // Phase 3a: Cleanup
@@ -329,7 +323,7 @@ build {
       "LIB_DIR=/usr/local/lib/k8s",
       "LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh",
     ]
-    execute_command = "sudo -S bash -c '{{ .Vars }} {{ .Path }}'"
+    execute_command = local.execute_command
   }
 
   // Phase 3b: Minimize
@@ -341,7 +335,7 @@ build {
       "LIB_DIR=/usr/local/lib/k8s",
       "LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh",
     ]
-    execute_command = "sudo -S bash -c '{{ .Vars }} {{ .Path }}'"
+    execute_command = local.execute_command
   }
 
   // Final cleanup: remove all build-only scripts and libraries
@@ -349,7 +343,7 @@ build {
     inline = [
       "rm -rf /usr/local/lib/k8s"
     ]
-    execute_command = "sudo -S bash -c '{{ .Vars }} {{ .Path }}'"
+    execute_command = local.execute_command
   }
 
   // Output Vagrant .box

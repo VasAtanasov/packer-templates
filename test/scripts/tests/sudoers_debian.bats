@@ -1,12 +1,18 @@
 #!/usr/bin/env bats
 
+setup() {
+  export SCRIPTS_DIR="${SCRIPTS_DIR:-/scripts}"
+  export LIB_SH="${LIB_SH:-/usr/local/lib/k8s/lib.sh}"
+  export LIB_DIR="${LIB_DIR:-/usr/local/lib/k8s}"
+}
+
 @test "sudoers.sh applies settings (first run)" {
-  run sudo bash /vagrant/packer_templates/scripts/debian/sudoers.sh
+  run sudo env LIB_SH="$LIB_SH" LIB_DIR="$LIB_DIR" bash "$SCRIPTS_DIR/debian/sudoers.sh"
   [ "$status" -eq 0 ]
 }
 
 @test "sudoers.sh is idempotent (second run)" {
-  run sudo bash /vagrant/packer_templates/scripts/debian/sudoers.sh
+  run sudo env LIB_SH="$LIB_SH" LIB_DIR="$LIB_DIR" bash "$SCRIPTS_DIR/debian/sudoers.sh"
   [ "$status" -eq 0 ]
 }
 
