@@ -15,6 +15,10 @@ TEMPLATE_DIR := packer_templates
 PKRVARS_DIR  := os_pkrvars
 BUILDS_DIR   := builds
 
+# Minimum versions
+PACKER_MIN_VER ?= 1.7.0
+VBOX_MIN_VER   ?= 7.1.6
+
 # Find all .pkrvars.hcl files
 PKRVARS_FILES := $(shell find $(PKRVARS_DIR) -name "*.pkrvars.hcl" 2>/dev/null | sort)
 
@@ -190,7 +194,16 @@ debug: ## Show debug information
 check-env: ## Check environment and dependencies
 	@echo -e "$(GREEN)Checking environment...$(RESET)"
 	@command -v packer >/dev/null 2>&1 || { echo -e "$(RED)Error: packer not found$(RESET)"; exit 1; }
-	@command -v VBoxManage >/dev/null 2>&1 || { echo -e "$(YELLOW)Warning: VBoxManage not found (required for VirtualBox builds)$(RESET)"; }
+	@command -v VBoxManage >/dev/null 2>&1 || { echo -e "$(RED)Error: VBoxManage not found (required for VirtualBox builds)$(RESET)"; exit 1; }
 	@[ -d "$(TEMPLATE_DIR)" ] || { echo -e "$(RED)Error: $(TEMPLATE_DIR) directory not found$(RESET)"; exit 1; }
 	@[ -d "$(PKRVARS_DIR)" ] || { echo -e "$(RED)Error: $(PKRVARS_DIR) directory not found$(RESET)"; exit 1; }
+	@# Version checks (fail early)
+	@pv=$$(packer version | sed -n 's/.*v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -n1); \
+		if [ -z "$$pv" ]; then echo -e "$(RED)Error: unable to parse Packer version$(RESET)"; exit 1; fi; \
+		if [ "$$pv" = "$$(printf '%s\n%s\n' "$$pv" "$(PACKER_MIN_VER)" | sort -V | tail -n1)" ]; then :; else \
+		  echo -e "$(RED)Error: Packer $$pv < required $(PACKER_MIN_VER)$(RESET)"; exit 1; fi
+	@vv=$$(VBoxManage --version 2>/dev/null | sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+).*$/\1/'); \
+		if [ -z "$$vv" ]; then echo -e "$(RED)Error: unable to parse VirtualBox version$(RESET)"; exit 1; fi; \
+		if [ "$$vv" = "$$(printf '%s\n%s\n' "$$vv" "$(VBOX_MIN_VER)" | sort -V | tail -n1)" ]; then :; else \
+		  echo -e "$(RED)Error: VirtualBox $$vv < required $(VBOX_MIN_VER)$(RESET)"; exit 1; fi
 	@echo -e "$(GREEN)Environment check passed!$(RESET)"

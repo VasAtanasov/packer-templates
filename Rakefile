@@ -1,19 +1,24 @@
 require 'fileutils'
 require 'open3'
+require 'rubygems'
 
 # Colors for output
-GREEN  = "\e[32m"
+GREEN = "\e[32m"
 YELLOW = "\e[33m"
-RED    = "\e[31m"
-RESET  = "\e[0m"
+RED = "\e[31m"
+RESET = "\e[0m"
 
 # Directories
 TEMPLATE_DIR = 'packer_templates'
-PKRVARS_DIR  = 'os_pkrvars'
-BUILDS_DIR   = 'builds'
+PKRVARS_DIR = 'os_pkrvars'
+BUILDS_DIR = 'builds'
 
 # Build configuration
 PROVIDERS = ENV['PROVIDERS'] || 'virtualbox-iso.vm'
+
+# Minimum versions (overridable via env)
+PACKER_MIN_VER = ENV['PACKER_MIN_VER'] || '1.7.0'
+VBOX_MIN_VER = ENV['VBOX_MIN_VER'] || '7.1.6'
 
 # Find all .pkrvars.hcl files
 def pkrvars_files
@@ -290,7 +295,7 @@ task :check_env do
 
   # Check for VBoxManage
   unless system('which VBoxManage > /dev/null 2>&1')
-    warnings << "VBoxManage not found (required for VirtualBox builds)"
+    errors << "VBoxManage not found (required for VirtualBox builds)"
   end
 
   # Check for directories
@@ -300,6 +305,27 @@ task :check_env do
 
   unless Dir.exist?(PKRVARS_DIR)
     errors << "#{PKRVARS_DIR} directory not found"
+  end
+
+  # Version checks (only if binaries are present)
+  if errors.none? { |e| e.include?('packer not found') }
+    pv_out, = Open3.capture2('packer version')
+    pv = pv_out[/v?(\d+\.\d+\.\d+)/, 1]
+    if pv.nil?
+      errors << 'unable to parse Packer version'
+    elsif Gem::Version.new(pv) < Gem::Version.new(PACKER_MIN_VER)
+      errors << "Packer #{pv} < required #{PACKER_MIN_VER}"
+    end
+  end
+
+  if errors.none? { |e| e.include?('VBoxManage not found') }
+    vv_out, = Open3.capture2('VBoxManage --version')
+    vv = vv_out[/^(\d+\.\d+\.\d+)/, 1]
+    if vv.nil?
+      errors << 'unable to parse VirtualBox version'
+    elsif Gem::Version.new(vv) < Gem::Version.new(VBOX_MIN_VER)
+      errors << "VirtualBox #{vv} < required #{VBOX_MIN_VER}"
+    end
   end
 
   if errors.empty? && warnings.empty?

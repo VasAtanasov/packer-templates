@@ -197,6 +197,12 @@ build {
     execute_command = "sudo -S bash -c '{{ .Vars }} {{ .Path }}'"
   }
 
+  // Re-upload scripts before Phase 3 (cleanup_debian.sh removes /tmp contents)
+  provisioner "file" {
+    source      = "${path.root}/scripts"
+    destination = "/tmp/packer-scripts"
+  }
+
   // Phase 3: Cleanup & minimize (smaller boxes)
   provisioner "shell" {
     inline = [
