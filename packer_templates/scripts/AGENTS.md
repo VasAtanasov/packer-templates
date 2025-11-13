@@ -1,6 +1,6 @@
 ---
 title: AGENTS (Scripts Guidance)
-version: 1.4.0
+version: 1.5.0
 status: Active
 scope: packer_templates/scripts
 ---
@@ -144,6 +144,105 @@ To add support for a new provider (e.g., VMware, Parallels):
    }
    ```
 
+## Variant Pattern
+
+Variant-specific scripts live in `variants/{name}/` and provide specialized configurations on top of the base box. Variants are activated via the `variant` variable in `.pkrvars.hcl` files.
+
+**Available variants:**
+- `base` - Minimal base box (no variant scripts run)
+- `k8s-node` - Kubernetes node with kubeadm, kubelet, kubectl, and container runtime
+- `docker-host` - Docker host with Docker Engine and docker-compose
+
+### Variant Script Organization
+
+Variant scripts are executed as Phase 2d in the Packer build after base configuration but before cleanup. Each variant directory contains a sequence of scripts executed in order.
+
+**Example (k8s-node):**
+```
+variants/k8s-node/
+├── prepare.sh                    # Disable swap, load kernel modules, configure sysctl
+├── configure_kernel.sh           # Kernel parameters for Kubernetes
+├── install_container_runtime.sh  # Install containerd or cri-o
+├── install_kubernetes.sh         # Install kubeadm, kubelet, kubectl
+└── configure_networking.sh       # Network plugins, CNI configuration
+```
+
+**Example (docker-host):**
+```
+variants/docker-host/
+├── install_docker.sh             # Install Docker Engine and Docker Compose
+└── configure_docker.sh           # Configure daemon.json, logging, systemd limits
+```
+
+### Variant Script Guidelines
+
+- **Environment variables available:**
+  - `LIB_SH` - Path to lib.sh
+  - `LIB_DIR` - Base directory for scripts
+  - `VARIANT` - Current variant name (e.g., "k8s-node")
+  - `K8S_VERSION` - Kubernetes version (k8s-node only)
+  - `CONTAINER_RUNTIME` - Container runtime choice (k8s-node only)
+  - `CRIO_VERSION` - CRI-O version (k8s-node with cri-o only)
+
+- **Follow the same rules as all scripts:**
+  - Use lib.sh helpers
+  - Maintain idempotency
+  - Log with lib functions
+  - Export `DEBIAN_FRONTEND=noninteractive`
+
+- **Variant-specific patterns:**
+  - Keep base box minimal; add functionality only in variants
+  - Variant scripts should not duplicate base configuration
+  - Branch on `CONTAINER_RUNTIME` or similar env vars for options
+  - Verify installations after completion
+
+### Adding a New Variant
+
+To add a new variant (e.g., database-server):
+
+1. Create `variants/{name}/` directory
+2. Write ordered scripts (e.g., `install_postgres.sh`, `configure_postgres.sh`)
+3. Add variant to template's `variant_scripts` map:
+   ```hcl
+   variant_scripts = {
+     "k8s-node" = [...],
+     "database-server" = [
+       "variants/database-server/install_postgres.sh",
+       "variants/database-server/configure_postgres.sh",
+     ],
+   }
+   ```
+4. Update `variant` variable validation to include new variant
+5. Create `.pkrvars.hcl` files with `variant = "database-server"`
+6. Add make targets for convenience builds
+
+### Variant Script Example
+
+```bash
+#!/usr/bin/env bash
+set -o pipefail
+source "${LIB_SH}"
+lib::strict
+lib::setup_traps
+lib::require_root
+
+main() {
+    lib::header "Preparing system for ${VARIANT}"
+    export DEBIAN_FRONTEND=noninteractive
+
+    # Use environment variables passed from Packer
+    local variant="${VARIANT:-unknown}"
+    lib::log "Configuring variant: ${variant}"
+
+    # Your variant-specific logic here
+    lib::ensure_packages package1 package2
+
+    lib::success "Variant preparation complete"
+}
+
+main "$@"
+```
+
 ## Script Skeleton
 
 ```bash
@@ -198,12 +297,13 @@ Examples
 
 ## Naming and Layout
 
-The scripts directory follows a three-tier organization for scalability.
+The scripts directory follows a four-tier organization for scalability.
 
 **Organization rules:**
 - `_common/` = Provider-agnostic + OS-family-agnostic scripts that work everywhere
 - `providers/{name}/` = Provider-specific integration (guest additions, drivers, services)
 - `{os}/` = OS-specific configuration (package managers, init systems, networking)
+- `variants/{name}/` = Variant-specific provisioning (k8s-node, docker-host, etc.)
 
 **Naming conventions:**
 - Use descriptive, action-oriented filenames (e.g., `sshd.sh`, `vagrant.sh`, `cleanup.sh`)
@@ -221,6 +321,7 @@ The scripts directory follows a three-tier organization for scalability.
 
 | Version | Date       | Changes                                                                                 |
 |---------|------------|-----------------------------------------------------------------------------------------|
+| 1.5.0   | 2025-11-13 | Added Variant Pattern section; updated directory layout to four-tier with variants/.    |
 | 1.4.0   | 2025-11-13 | Added Provider Integration Pattern; lib helpers for providers; deprecated build_tools.  |
 | 1.3.0   | 2025-11-13 | Restructured directory layout: added providers/ tier; renamed debian scripts.           |
 | 1.2.0   | 2025-11-13 | Merged general Bash guidance; focused on this project; removed K8s/Azure specifics.     |

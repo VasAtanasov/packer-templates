@@ -1,3 +1,6 @@
+// Debian 12 x86_64 Docker Host Variant
+// Based on debian-12-x86_64.pkrvars.hcl with Docker-specific configurations
+
 os_name                 = "debian"
 os_version              = "12.12"
 os_arch                 = "x86_64"
@@ -6,5 +9,10 @@ iso_checksum            = "file:https://cdimage.debian.org/cdimage/archive/lates
 vbox_guest_os_type      = "Debian12_64"
 boot_command            = ["<wait><esc><wait>auto preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/debian/preseed.cfg netcfg/get_hostname={{ .Name }}<enter>"]
 
+// Docker hosts need reasonable resources
+cpus                    = 2
+memory                  = 2048  // 2GB RAM
+disk_size               = 40960 // 40GB disk
+
 // Variant configuration
-variant                 = "base"  // Minimal base box
+variant                 = "docker-host"

@@ -1,6 +1,6 @@
 ---
 title: AGENTS (Root Guidance)
-version: 1.2.0
+version: 1.3.0
 status: Active
 scope: repo-wide
 ---
@@ -29,10 +29,19 @@ This is a Packer repository for building Debian-based Vagrant boxes for VirtualB
 
 ### Quick Build Commands
 ```bash
-make debian-12          # Build Debian 12 x86_64 (recommended)
-make debian-13          # Build Debian 13 x86_64
-make debian-12-arm      # Build Debian 12 aarch64
-make debian-13-arm      # Build Debian 13 aarch64
+# Base boxes (minimal)
+make debian-12          # Build Debian 12 x86_64 base box (recommended)
+make debian-13          # Build Debian 13 x86_64 base box
+make debian-12-arm      # Build Debian 12 aarch64 base box
+make debian-13-arm      # Build Debian 13 aarch64 base box
+
+# Kubernetes node variant
+make debian-12-k8s      # Build Debian 12 x86_64 Kubernetes node
+make debian-12-arm-k8s  # Build Debian 12 aarch64 Kubernetes node
+
+# Docker host variant
+make debian-12-docker       # Build Debian 12 x86_64 Docker host
+make debian-12-arm-docker   # Build Debian 12 aarch64 Docker host
 ```
 
 ### Core Commands
@@ -65,13 +74,21 @@ packer_templates/
     _common/                # Cross-distro scripts (vagrant, sshd, minimize, etc.)
       lib.sh                # Shared Bash library with 60+ helper functions
     debian/                 # Debian-specific scripts
+    providers/              # Provider-specific integration scripts
+      virtualbox/           # VirtualBox Guest Additions
+      hyperv/               # Hyper-V Integration Services
+    variants/               # Variant-specific provisioning scripts
+      k8s-node/             # Kubernetes node variant
+      docker-host/          # Docker host variant
 
 os_pkrvars/
   debian/                   # Debian variable files
-    debian-12-x86_64.pkrvars.hcl
-    debian-12-aarch64.pkrvars.hcl
-    debian-13-x86_64.pkrvars.hcl
-    debian-13-aarch64.pkrvars.hcl
+    debian-12-x86_64.pkrvars.hcl                  # Base box
+    debian-12-aarch64.pkrvars.hcl                 # Base box (ARM)
+    debian-12-x86_64-k8s-node.pkrvars.hcl         # K8s variant
+    debian-12-aarch64-k8s-node.pkrvars.hcl        # K8s variant (ARM)
+    debian-12-x86_64-docker-host.pkrvars.hcl      # Docker variant
+    debian-12-aarch64-docker-host.pkrvars.hcl     # Docker variant (ARM)
 
 builds/
   iso/                      # Downloaded ISOs
@@ -81,7 +98,7 @@ builds/
 
 ### Template Architecture
 
-The project uses a **single unified template** (`main.pkr.hcl`) that combines variables, source definitions, and build logic. This replaces the legacy split-file approach for simplicity.
+The project uses a **single unified template** (`main.pkr.hcl`) that handles all OS × Variant combinations. This prevents template explosion and maintains a single source of truth for build logic.
 
 **Key variables:**
 - `os_name`, `os_version`, `os_arch` - OS identification
@@ -89,6 +106,8 @@ The project uses a **single unified template** (`main.pkr.hcl`) that combines va
 - `vbox_guest_os_type` - VirtualBox guest OS type
 - `boot_command` - Installer boot command sequence
 - `vboxmanage` - Custom VBoxManage commands (auto-configured per architecture)
+- `variant` - Box variant: "base" (minimal), "k8s-node", "docker-host"
+- `kubernetes_version`, `container_runtime`, `crio_version` - K8s-specific (when variant="k8s-node")
 
 HCL style conventions:
 - Use snake_case for variable names and filenames.
@@ -103,17 +122,19 @@ HCL style conventions:
 
 **Phase 1: System Preparation**
 - Update all packages via `_common/update_packages.sh`
-- Disable automatic updates (required for Kubernetes)
+- Disable automatic updates
 - May trigger reboot
 
 **Phase 2: OS Configuration**
-- Configure SSH (`_common/sshd.sh`)
-- Set up Vagrant user (`_common/vagrant.sh`)
-- Configure systemd, sudoers, networking (debian-specific scripts)
- - Install VirtualBox Guest Additions (policy: always install). See `scripts/_common/guest_tools_virtualbox.sh` and ensure `vbox_guest_additions_mode` is set appropriately.
+- Phase 2a: Provider dependencies (`providers/virtualbox/install_dependencies.sh`)
+- Phase 2b: Provider integration (`providers/virtualbox/guest_additions.sh`)
+- Phase 2c: Base config (SSH, Vagrant user, systemd, sudoers, networking)
+- Phase 2d: Variant provisioning (only for non-base variants)
+  - K8s variant: prepare, configure_kernel, install_container_runtime, install_kubernetes, configure_networking
+  - Docker variant: install_docker, configure_docker
 
-**Phase 3: Cleanup & Minimization** (split into 3a and 3b)
-- Phase 3a: Remove unnecessary packages (`debian/cleanup_debian.sh`)
+**Phase 3: Cleanup & Minimization**
+- Phase 3a: Remove unnecessary packages (`debian/cleanup.sh`)
 - Phase 3b: Clear logs, temporary files, zero free space (`_common/minimize.sh`)
 - Final step: Remove build-only library (`lib.sh`)
 
@@ -174,7 +195,27 @@ Script rules in brief (see `packer_templates/scripts/AGENTS.md` for details):
 1. Add new `source` block in `packer_templates/main.pkr.hcl`
 2. Add to `sources` list in `build {}` block
 3. Update `pkr-plugins.pkr.hcl` with required plugin
-4. Create make targets with `PROVIDERS=<provider-name>`
+4. Create `providers/{name}/` with `install_dependencies.sh` and integration script
+5. Add provider phases to template (Phase 2a and 2b)
+6. Create make targets with `PROVIDERS=<provider-name>`
+
+### Adding a New Variant
+1. Create `packer_templates/scripts/variants/{name}/` directory
+2. Write ordered scripts for the variant (e.g., `install.sh`, `configure.sh`)
+3. Add variant to `variant_scripts` map in `main.pkr.hcl`:
+   ```hcl
+   variant_scripts = {
+     "k8s-node" = [...],
+     "new-variant" = [
+       "variants/new-variant/install.sh",
+       "variants/new-variant/configure.sh",
+     ],
+   }
+   ```
+4. Update `variant` variable validation to include new variant
+5. Create `.pkrvars.hcl` files with `variant = "new-variant"` and any variant-specific variables
+6. Add make targets for convenience builds (e.g., `debian-12-new-variant`)
+7. Test variant on both x86_64 and aarch64 where applicable
 
 ### Writing Provisioner Scripts
 - Source lib.sh: `source "${LIB_SH}"`
@@ -182,6 +223,7 @@ Script rules in brief (see `packer_templates/scripts/AGENTS.md` for details):
 - Make scripts idempotent (safe to re-run)
 - Use helper functions: `lib::ensure_package`, `lib::ensure_service`, etc.
 - Test on both x86_64 and aarch64 when possible
+- For variant scripts, see `packer_templates/scripts/AGENTS.md` for detailed guidelines
 
 ## Host Environment
 
@@ -236,10 +278,13 @@ make validate-one TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl  # Single templat
 
 - New template `.pkrvars.hcl` validates (`make validate-one`).
 - Full build succeeds on both arches (where applicable).
-- Box name matches `<os_name>-<os_version>-<os_arch>.virtualbox.box`.
+- Box name matches:
+  - Base: `<os_name>-<os_version>-<os_arch>.virtualbox.box`
+  - Variant: `<os_name>-<os_version>-<os_arch>-<variant>.virtualbox.box`
 - `vagrant up` works; SSH with `vagrant/vagrant` succeeds.
 - Guest Additions installed and functional.
-- Size is reasonable for the distro/version; cleanup phase applied.
+- For variants: variant-specific software is installed and functional.
+- Size is reasonable for the distro/version/variant; cleanup phase applied.
 
 ## Fast Dev Loop
 
@@ -330,6 +375,7 @@ make validate-one TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl  # Single templat
 
 | Version | Date       | Changes                                                                                  |
 |---------|------------|------------------------------------------------------------------------------------------|
+| 1.3.0   | 2025-11-13 | Added variant system; directory structure; Phase 2d; K8s build targets; DoD updated.     |
 | 1.2.0   | 2025-11-13 | Added frontmatter; expanded documentation standard; parity note; fast dev loop added.   |
 | 1.1.0   | 2025-11-13 | Host-agnostic stance, Guest Additions policy, HCL conventions, reproducibility, DoD.     |
 | 1.0.0   | 2025-11-12 | Initial repository-wide guidance and commands overview.                                   |

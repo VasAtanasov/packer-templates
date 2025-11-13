@@ -228,25 +228,49 @@ end
 
 ##@ Quick Builds (Debian)
 
-desc 'Build Debian 12 x86_64 box'
+desc 'Build Debian 12 x86_64 base box'
 task :debian_12 do
   ENV['TEMPLATE'] = 'debian/debian-12-x86_64.pkrvars.hcl'
   Rake::Task[:build].invoke
 end
 
-desc 'Build Debian 12 aarch64 box'
+desc 'Build Debian 12 aarch64 base box'
 task :debian_12_arm do
   ENV['TEMPLATE'] = 'debian/debian-12-aarch64.pkrvars.hcl'
   Rake::Task[:build].invoke
 end
 
-desc 'Build Debian 13 x86_64 box'
+desc 'Build Debian 12 x86_64 Kubernetes node box'
+task :debian_12_k8s do
+  ENV['TEMPLATE'] = 'debian/debian-12-x86_64-k8s-node.pkrvars.hcl'
+  Rake::Task[:build].invoke
+end
+
+desc 'Build Debian 12 aarch64 Kubernetes node box'
+task :debian_12_arm_k8s do
+  ENV['TEMPLATE'] = 'debian/debian-12-aarch64-k8s-node.pkrvars.hcl'
+  Rake::Task[:build].invoke
+end
+
+desc 'Build Debian 12 x86_64 Docker host box'
+task :debian_12_docker do
+  ENV['TEMPLATE'] = 'debian/debian-12-x86_64-docker-host.pkrvars.hcl'
+  Rake::Task[:build].invoke
+end
+
+desc 'Build Debian 12 aarch64 Docker host box'
+task :debian_12_arm_docker do
+  ENV['TEMPLATE'] = 'debian/debian-12-aarch64-docker-host.pkrvars.hcl'
+  Rake::Task[:build].invoke
+end
+
+desc 'Build Debian 13 x86_64 base box'
 task :debian_13 do
   ENV['TEMPLATE'] = 'debian/debian-13-x86_64.pkrvars.hcl'
   Rake::Task[:build].invoke
 end
 
-desc 'Build Debian 13 aarch64 box'
+desc 'Build Debian 13 aarch64 base box'
 task :debian_13_arm do
   ENV['TEMPLATE'] = 'debian/debian-13-aarch64.pkrvars.hcl'
   Rake::Task[:build].invoke

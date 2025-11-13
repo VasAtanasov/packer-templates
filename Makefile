@@ -159,19 +159,35 @@ endif
 ##@ Quick Builds (Debian)
 
 .PHONY: debian-12
-debian-12: ## Build Debian 12 x86_64 box
+debian-12: ## Build Debian 12 x86_64 base box
 	@$(MAKE) build TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl
 
 .PHONY: debian-12-arm
-debian-12-arm: ## Build Debian 12 aarch64 box
+debian-12-arm: ## Build Debian 12 aarch64 base box
 	@$(MAKE) build TEMPLATE=debian/debian-12-aarch64.pkrvars.hcl
 
+.PHONY: debian-12-k8s
+debian-12-k8s: ## Build Debian 12 x86_64 Kubernetes node box
+	@$(MAKE) build TEMPLATE=debian/debian-12-x86_64-k8s-node.pkrvars.hcl
+
+.PHONY: debian-12-arm-k8s
+debian-12-arm-k8s: ## Build Debian 12 aarch64 Kubernetes node box
+	@$(MAKE) build TEMPLATE=debian/debian-12-aarch64-k8s-node.pkrvars.hcl
+
+.PHONY: debian-12-docker
+debian-12-docker: ## Build Debian 12 x86_64 Docker host box
+	@$(MAKE) build TEMPLATE=debian/debian-12-x86_64-docker-host.pkrvars.hcl
+
+.PHONY: debian-12-arm-docker
+debian-12-arm-docker: ## Build Debian 12 aarch64 Docker host box
+	@$(MAKE) build TEMPLATE=debian/debian-12-aarch64-docker-host.pkrvars.hcl
+
 .PHONY: debian-13
-debian-13: ## Build Debian 13 x86_64 box
+debian-13: ## Build Debian 13 x86_64 base box
 	@$(MAKE) build TEMPLATE=debian/debian-13-x86_64.pkrvars.hcl
 
 .PHONY: debian-13-arm
-debian-13-arm: ## Build Debian 13 aarch64 box
+debian-13-arm: ## Build Debian 13 aarch64 base box
 	@$(MAKE) build TEMPLATE=debian/debian-13-aarch64.pkrvars.hcl
 
 ##@ Development

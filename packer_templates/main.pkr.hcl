@@ -1,10 +1,17 @@
 // =============================================================================
-// Packer Template: Debian 12/13 on VirtualBox (Vagrant box)
+// Packer Template: Universal Multi-OS Multi-Variant (Vagrant box)
 // =============================================================================
-// Scope: Minimal, focused on Debian and VirtualBox. Easy to extend later.
+// Scope: Single template supporting multiple OSes and variants
+// Variants: base (minimal), k8s-node (Kubernetes), docker-host (Docker)
 // Usage:
-//   cd os_pkrvars/debian
-//   packer build -var-file=debian-12-x86_64.pkrvars.hcl ../../packer_templates
+//   # Base box
+//   packer build -var-file=debian-12-x86_64.pkrvars.hcl packer_templates
+//
+//   # K8s variant
+//   packer build -var-file=debian-12-x86_64-k8s-node.pkrvars.hcl packer_templates
+//
+//   # Ubuntu K8s variant (future)
+//   packer build -var-file=ubuntu-24-x86_64-k8s-node.pkrvars.hcl packer_templates
 // =============================================================================
 
 // -----------------------------------------------------------------------------
@@ -72,11 +79,45 @@ variable "vbox_rtc_time_base" {
   description = "RTC time base"
 }
 
+// Variant-specific variables
+variable "variant" {
+  type    = string
+  default = "base"
+  validation {
+    condition     = contains(["base", "k8s-node", "docker-host"], var.variant)
+    error_message = "The variant must be 'base', 'k8s-node', or 'docker-host'."
+  }
+  description = "Box variant: base (minimal), k8s-node (Kubernetes), docker-host (Docker)"
+}
+
+// K8s-specific variables (only used when variant = "k8s-node")
+variable "kubernetes_version" {
+  type        = string
+  default     = "1.28"
+  description = "Kubernetes major.minor version (e.g., 1.28)"
+}
+
+variable "container_runtime" {
+  type    = string
+  default = "containerd"
+  validation {
+    condition     = contains(["containerd", "cri-o"], var.container_runtime)
+    error_message = "The container_runtime must be 'containerd' or 'cri-o'."
+  }
+  description = "Container runtime: containerd or cri-o"
+}
+
+variable "crio_version" {
+  type        = string
+  default     = "1.28"
+  description = "CRI-O version (only used if container_runtime=cri-o)"
+}
+
 // -----------------------------------------------------------------------------
 // Locals
 // -----------------------------------------------------------------------------
 locals {
-  box_name         = "${var.os_name}-${var.os_version}-${var.os_arch}"
+  box_name         = var.variant == "base" ? "${var.os_name}-${var.os_version}-${var.os_arch}" : "${var.os_name}-${var.os_version}-${var.os_arch}-${var.variant}"
   output_directory = var.output_directory == null ? "${path.root}/../builds/build_files/packer-${var.os_name}-${var.os_version}-${var.os_arch}" : var.output_directory
   vboxmanage = var.vboxmanage == null ? (
     var.os_arch == "aarch64" ? [
@@ -97,6 +138,24 @@ locals {
   ]
   ) : var.vboxmanage
   iso_target_path = var.iso_target_path == "build_dir_iso" && var.iso_url != null ? "${path.root}/../builds/iso/${var.os_name}-${var.os_version}-${var.os_arch}-${substr(sha256(var.iso_url), 0, 8)}.iso" : var.iso_target_path
+
+  // Variant script mappings
+  variant_scripts = {
+    "k8s-node" = [
+      "variants/k8s-node/prepare.sh",
+      "variants/k8s-node/configure_kernel.sh",
+      "variants/k8s-node/install_container_runtime.sh",
+      "variants/k8s-node/install_kubernetes.sh",
+      "variants/k8s-node/configure_networking.sh",
+    ],
+    "docker-host" = [
+      "variants/docker-host/install_docker.sh",
+      "variants/docker-host/configure_docker.sh",
+    ],
+  }
+
+  // Select variant scripts (empty for base variant)
+  selected_variant_scripts = var.variant == "base" ? [] : lookup(local.variant_scripts, var.variant, [])
 }
 
 // -----------------------------------------------------------------------------
@@ -179,7 +238,9 @@ build {
   }
 
   // Phase 2a: Provider dependencies (kernel headers, build tools for VirtualBox)
+  // Skip when Guest Additions are disabled by template var
   provisioner "shell" {
+    only = var.vbox_guest_additions_mode != "disable" ? ["virtualbox-iso.vm"] : []
     inline = [
       "bash /usr/local/lib/k8s/scripts/providers/virtualbox/install_dependencies.sh",
     ]
@@ -192,7 +253,9 @@ build {
   }
 
   // Phase 2b: Provider integration (Guest Additions)
+  // Skip when Guest Additions are disabled by template var
   provisioner "shell" {
+    only = var.vbox_guest_additions_mode != "disable" ? ["virtualbox-iso.vm"] : []
     inline = [
       "bash /usr/local/lib/k8s/scripts/providers/virtualbox/guest_additions.sh",
     ]
@@ -217,6 +280,42 @@ build {
     environment_vars = [
       "LIB_DIR=/usr/local/lib/k8s",
       "LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh",
+    ]
+    execute_command = "sudo -S bash -c '{{ .Vars }} {{ .Path }}'"
+  }
+
+  // Phase 2d: Variant-specific provisioning (k8s-node)
+  provisioner "shell" {
+    only = var.variant == "k8s-node" ? ["virtualbox-iso.vm"] : []
+    inline = [
+      "bash /usr/local/lib/k8s/scripts/variants/k8s-node/prepare.sh",
+      "bash /usr/local/lib/k8s/scripts/variants/k8s-node/configure_kernel.sh",
+      "bash /usr/local/lib/k8s/scripts/variants/k8s-node/install_container_runtime.sh",
+      "bash /usr/local/lib/k8s/scripts/variants/k8s-node/install_kubernetes.sh",
+      "bash /usr/local/lib/k8s/scripts/variants/k8s-node/configure_networking.sh",
+    ]
+    environment_vars = [
+      "LIB_DIR=/usr/local/lib/k8s",
+      "LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh",
+      "K8S_VERSION=${var.kubernetes_version}",
+      "CONTAINER_RUNTIME=${var.container_runtime}",
+      "CRIO_VERSION=${var.crio_version}",
+      "VARIANT=${var.variant}",
+    ]
+    execute_command = "sudo -S bash -c '{{ .Vars }} {{ .Path }}'"
+  }
+
+  // Phase 2d: Variant-specific provisioning (docker-host)
+  provisioner "shell" {
+    only = var.variant == "docker-host" ? ["virtualbox-iso.vm"] : []
+    inline = [
+      "bash /usr/local/lib/k8s/scripts/variants/docker-host/install_docker.sh",
+      "bash /usr/local/lib/k8s/scripts/variants/docker-host/configure_docker.sh",
+    ]
+    environment_vars = [
+      "LIB_DIR=/usr/local/lib/k8s",
+      "LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh",
+      "VARIANT=${var.variant}",
     ]
     execute_command = "sudo -S bash -c '{{ .Vars }} {{ .Path }}'"
   }
