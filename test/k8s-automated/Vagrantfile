@@ -1,0 +1,93 @@
+# Vagrantfile for automated K8s variant script testing
+# This approach runs all K8s scripts automatically during provisioning
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "debian-12"
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.name = "k8s-test-automated"
+    vb.memory = "4096"
+    vb.cpus = 2
+  end
+
+  # Sync scripts for testing
+  config.vm.synced_folder "../../packer_templates/scripts", "/scripts"
+
+  # Run the K8s variant scripts automatically
+  config.vm.provision "shell", inline: <<-SHELL
+    set -e
+
+    echo "=================================================="
+    echo "K8s Variant Scripts - Automated Test"
+    echo "=================================================="
+
+    # Set environment variables (same as Packer)
+    export LIB_DIR=/usr/local/lib/k8s
+    export LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh
+    export K8S_VERSION="1.33"
+    export CONTAINER_RUNTIME="containerd"
+    export VARIANT="k8s-node"
+    export DEBIAN_FRONTEND=noninteractive
+
+    # Install scripts to persistent location
+    echo "Installing scripts to ${LIB_DIR}..."
+    mkdir -p /usr/local/lib/k8s
+    cp -r /scripts /usr/local/lib/k8s/scripts
+    chmod -R 0755 /usr/local/lib/k8s/scripts
+    find /usr/local/lib/k8s/scripts -type f -name '*.sh' -exec chmod 0755 {} \\;
+    chown -R root:root /usr/local/lib/k8s
+
+    echo ""
+    echo "=== Phase 1: Prepare System for K8s ==="
+    bash /usr/local/lib/k8s/scripts/variants/k8s-node/prepare.sh
+
+    echo ""
+    echo "=== Phase 2: Configure Kernel ==="
+    bash /usr/local/lib/k8s/scripts/variants/k8s-node/configure_kernel.sh
+
+    echo ""
+    echo "=== Phase 3: Install Container Runtime ==="
+    bash /usr/local/lib/k8s/scripts/variants/k8s-node/install_container_runtime.sh
+
+    echo ""
+    echo "=== Phase 4: Install Kubernetes ==="
+    bash /usr/local/lib/k8s/scripts/variants/k8s-node/install_kubernetes.sh
+
+    echo ""
+    echo "=== Phase 5: Configure Networking ==="
+    bash /usr/local/lib/k8s/scripts/variants/k8s-node/configure_networking.sh
+
+    echo ""
+    echo "=================================================="
+    echo "=== Verification ==="
+    echo "=================================================="
+
+    echo "Kubernetes versions:"
+    kubeadm version || echo "kubeadm not found"
+    kubelet --version || echo "kubelet not found"
+    kubectl version --client=true || echo "kubectl not found"
+
+    echo ""
+    echo "Container runtime:"
+    systemctl status containerd --no-pager | head -3 || echo "containerd not running"
+
+    echo ""
+    echo "Kernel modules:"
+    lsmod | grep br_netfilter || echo "br_netfilter not loaded"
+    lsmod | grep overlay || echo "overlay not loaded"
+
+    echo ""
+    echo "Sysctl settings:"
+    sysctl net.bridge.bridge-nf-call-iptables
+    sysctl net.ipv4.ip_forward
+
+    echo ""
+    echo "Swap status:"
+    swapon --show || echo "Swap is disabled (good for K8s)"
+
+    echo ""
+    echo "=================================================="
+    echo "Test completed! Use 'vagrant ssh' to explore."
+    echo "=================================================="
+  SHELL
+end

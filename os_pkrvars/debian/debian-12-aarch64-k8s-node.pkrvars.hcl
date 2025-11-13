@@ -18,6 +18,6 @@ disk_size               = 61440  // 60GB disk
 variant                 = "k8s-node"
 
 // Kubernetes configuration
-kubernetes_version      = "1.28"
+kubernetes_version      = "1.33"
 container_runtime       = "containerd"  // or "cri-o"
-crio_version            = "1.28"        // only used if container_runtime=cri-o
+crio_version            = "1.33"        // only used if container_runtime=cri-o

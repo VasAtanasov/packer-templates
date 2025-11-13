@@ -1,0 +1,10 @@
+# Vagrant
+.vagrant/
+*.log
+
+# Test artifacts
+*.box
+
+# OS specific
+.DS_Store
+Thumbs.db

@@ -1,0 +1,85 @@
+# Vagrantfile for automated Docker variant script testing
+# This approach runs all Docker scripts automatically during provisioning
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "debian-12"
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.name = "docker-test-automated"
+    vb.memory = "2048"
+    vb.cpus = 2
+  end
+
+  # Sync scripts for testing (using VirtualBox shared folders for Windows compatibility)
+  config.vm.synced_folder "../../packer_templates/scripts", "/scripts"
+
+  # Run the Docker variant scripts automatically
+  config.vm.provision "shell", inline: <<-SHELL
+    set -e
+
+    echo "=================================================="
+    echo "Docker Variant Scripts - Automated Test"
+    echo "=================================================="
+
+    # Set environment variables (same as Packer)
+    export LIB_DIR=/usr/local/lib/k8s
+    export LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh
+    export VARIANT="docker-host"
+    export DEBIAN_FRONTEND=noninteractive
+
+    # Install scripts to persistent location
+    echo "Installing scripts to ${LIB_DIR}..."
+    mkdir -p /usr/local/lib/k8s
+    cp -r /scripts /usr/local/lib/k8s/scripts
+    chmod -R 0755 /usr/local/lib/k8s/scripts
+    find /usr/local/lib/k8s/scripts -type f -name '*.sh' -exec chmod 0755 {} \\;
+    chown -R root:root /usr/local/lib/k8s
+
+    echo ""
+    echo "=== Phase 1: Install Docker ==="
+    bash /usr/local/lib/k8s/scripts/variants/docker-host/install_docker.sh
+
+    echo ""
+    echo "=== Phase 2: Configure Docker ==="
+    bash /usr/local/lib/k8s/scripts/variants/docker-host/configure_docker.sh
+
+    echo ""
+    echo "=================================================="
+    echo "=== Verification ==="
+    echo "=================================================="
+
+    echo "Docker version:"
+    docker --version || echo "docker not found"
+
+    echo ""
+    echo "Docker Compose version:"
+    docker compose version || echo "docker compose not found"
+
+    echo ""
+    echo "Docker service status:"
+    systemctl status docker --no-pager | head -3 || echo "docker not running"
+
+    echo ""
+    echo "Docker info:"
+    docker info 2>/dev/null | grep -E "(Storage Driver|Logging Driver|Cgroup Driver)" || echo "Cannot get docker info"
+
+    echo ""
+    echo "Vagrant user in docker group:"
+    groups vagrant | grep docker && echo "✓ vagrant is in docker group" || echo "✗ vagrant NOT in docker group"
+
+    echo ""
+    echo "Docker daemon configuration:"
+    cat /etc/docker/daemon.json || echo "No daemon.json found"
+
+    echo ""
+    echo "Test Docker (as vagrant user):"
+    su - vagrant -c "docker run --rm hello-world" || echo "Docker test failed (may need re-login)"
+
+    echo ""
+    echo "=================================================="
+    echo "Test completed! Use 'vagrant ssh' to explore."
+    echo "Note: You may need to logout/login for docker"
+    echo "      group membership to take effect."
+    echo "=================================================="
+  SHELL
+end

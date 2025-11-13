@@ -1,0 +1,39 @@
+# Vagrantfile for interactive K8s variant script testing
+# This approach gives you a shell to run scripts manually step-by-step
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "debian-12"
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.name = "k8s-test-interactive"
+    vb.memory = "4096"
+    vb.cpus = 2
+  end
+
+  # Sync scripts for testing (bi-directional for easy editing)
+  config.vm.synced_folder "../../packer_templates/scripts", "/scripts"
+
+  # Optional: Set up environment but don't run scripts
+  config.vm.provision "shell", inline: <<-SHELL
+    echo "=================================================="
+    echo "K8s Variant Scripts - Interactive Test Environment"
+    echo "=================================================="
+    echo ""
+    echo "Scripts are available at: /scripts"
+    echo ""
+    echo "To test scripts manually:"
+    echo "  1. vagrant ssh"
+    echo "  2. sudo -i"
+    echo "  3. source /scripts/test-env.sh"
+    echo "  4. Run scripts one by one"
+    echo ""
+    echo "Quick start:"
+    echo "  vagrant ssh"
+    echo "  sudo /scripts/test-env.sh"
+    echo "=================================================="
+  SHELL
+
+  # Create helper script inside the VM
+  config.vm.provision "file", source: "./test-env.sh", destination: "/tmp/test-env.sh"
+  config.vm.provision "shell", inline: "sudo mv /tmp/test-env.sh /scripts/test-env.sh && sudo chmod +x /scripts/test-env.sh"
+end
