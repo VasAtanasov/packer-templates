@@ -116,11 +116,18 @@ HCL style conventions:
 3. Run Phase 1 (may trigger reboot, which clears `/tmp`)
 4. Re-upload `scripts/` tree to `/tmp/packer-scripts` (after potential reboot)
 5. Run Phase 2 with `LIB_DIR=/usr/local/lib/k8s` and `LIB_SH=/usr/local/lib/k8s/lib.sh` environment variables
-6. Re-upload `scripts/` tree to `/tmp/packer-scripts` (cleanup_debian.sh removes `/tmp` contents)
-7. Run Phase 3 with the same environment variables
-8. Final cleanup removes `/usr/local/lib/k8s/lib.sh` from box
+6. Re-upload `scripts/` tree to `/tmp/packer-scripts`
+7. Run Phase 3a: `cleanup_debian.sh` (removes `/tmp` contents)
+8. Re-upload `scripts/` tree to `/tmp/packer-scripts` (after cleanup)
+9. Run Phase 3b: `minimize.sh`
+10. Final cleanup removes `/usr/local/lib/k8s/lib.sh` from box
 
-**Critical**: Scripts are re-uploaded after Phase 1 (reboot clears `/tmp`) and before Phase 3 (`cleanup_debian.sh` removes `/tmp` contents). The `lib.sh` library persists in `/usr/local/lib/k8s/` across all phases.
+**Critical**: Scripts are re-uploaded three times:
+- After Phase 1 (reboot clears `/tmp`)
+- Before Phase 3a (standard pre-phase upload)
+- After Phase 3a (cleanup_debian.sh removes `/tmp` contents)
+
+The `lib.sh` library persists in `/usr/local/lib/k8s/` across all phases and is only removed in the final cleanup step.
 
 ### lib.sh Library
 
@@ -238,6 +245,69 @@ make validate-one TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl  # Single templat
 ## Build Files Parity
 
 - When updating any of the Rakefile or Makefile the both files must be identical in functionality. I use Makefile under Linux because it executes command with linux commands and rake file is for windows
+
+## Documentation Standard
+
+- Applies to all Markdown guidance in this repo: `README.md`, `AGENTS.md` (root and scoped), files in `doc/`, and any other `.md` documents.
+- Goals: consistent structure, explicit ownership, semantic versioning, and auditable history.
+
+- Required header metadata at the top of every document:
+  ```
+  title: <Document Title>
+  version: <x.y.z>
+  status: Draft | Active | Deprecated
+  scope: Bash standards for bootstrap/install scripts across modules
+  ```
+
+- Document versioning (SemVer):
+  - Major: breaking or policy/scope change that invalidates prior guidance.
+  - Minor: new guidance or sections that are backward-compatible.
+  - Patch: clarifications, formatting, typo fixes, non-normative edits.
+
+- History and traceability:
+  - Each document must include a "Doc Changelog" section at the end with a table: Version | Date | Changes
+  - Every documentation change must also update the repo-level `CHANGELOG.md` under Unreleased (see Changelog Updates).
+  - Commit message pattern: `docs: <path> v<version> - <one-line summary>`.
+
+- Status lifecycle:
+  - Draft: not yet normative; do not rely on for enforcement.
+  - Active: normative and enforced by agents within scope.
+  - Deprecated: superseded; keep file with pointer to replacement until next major repo release.
+
+- Scope
+  -  1–2 line statement of the document’s scope and applicability.
+
+- Linking and references:
+  - Use relative links within the repo; prefer stable section anchors.
+  - Cross-reference scoped `AGENTS.md` where rules differ by subtree.
+
+- Document update workflow:
+  1) Bump `version:` in frontmatter according to SemVer.
+  2) Append a new row to `## Doc Changelog` with date, and a concise change note. The row must be appended in desc order by version (latest at top).
+  3) Update cross-references in the repo if titles/paths changed.
+
+- Header templates (copy/paste):
+  - Document header
+    ```
+    title: AGENTS (Root Guidance)
+    version: 1.0.0
+    status: Active
+    scope: repo-wide
+    ```
+  - Doc Changelog block
+    ```
+    ## Doc Changelog
+    - <YYYY-MM-DD> v<x.y.z> Added/Changed/Fixed: <concise summary> (commit <shortsha>)
+    ```
+    ```
+    ## Document History
+
+    | Version | Date         | Changes                                                    |
+    |---------|--------------|------------------------------------------------------------|
+    | 1.2.0   | <YYYY-MM-DD> | Added/Changed/Fixed: <concise summary> (commit <shortsha>) |
+    | 1.1.1   | <YYYY-MM-DD> | Added/Changed/Fixed: <concise summary> (commit <shortsha>) |
+    | 1.1.0   | <YYYY-MM-DD> | Added/Changed/Fixed: <concise summary> (commit <shortsha>) |
+    ```
 
 ## Changelog Updates
 
