@@ -1,4 +1,4 @@
-#**/builds/
+**/builds/
 *.iso
 *.ova
 *.ovf
@@ -9,7 +9,7 @@
 packer.log
 Gemfile.lock
 bootstrap.sh
-#/builds/
+/builds/
 
 # Created by https://www.toptal.com/developers/gitignore/api/packer,vagrant,rubymine+all
 # Edit at https://www.toptal.com/developers/gitignore?templates=packer,vagrant,rubymine+all
