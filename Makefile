@@ -83,9 +83,9 @@ endif
 	var_file=$(PKRVARS_DIR)/$(TEMPLATE); \
 	extra_vars=""; \
 	if [ -n "$(VARIANT)" ]; then \
-		extra_vars="-var='variant=$(VARIANT)'"; \
+		extra_vars="-var=variant=$(VARIANT)"; \
 		if [ "$(VARIANT)" = "k8s-node" ]; then \
-			extra_vars="$$extra_vars -var='kubernetes_version=$(K8S_VERSION)' -var='cpus=2' -var='memory=4096' -var='disk_size=61440'"; \
+			extra_vars="$$extra_vars -var=kubernetes_version=$(K8S_VERSION) -var=cpus=2 -var=memory=4096 -var=disk_size=61440"; \
 		fi; \
 	fi; \
 	echo -e "$(GREEN)Building $(PROVIDER)/$(TARGET_OS) from $$var_file$(RESET)"; \

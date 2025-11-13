@@ -132,9 +132,9 @@ task build: :init do
 
   extra_vars = ""
   if variant && !variant.empty?
-    extra_vars = "-var='variant=#{variant}'"
+    extra_vars = "-var=variant=#{variant}"
     if variant == "k8s-node"
-      extra_vars += " -var='kubernetes_version=#{K8S_VERSION}' -var='cpus=2' -var='memory=4096' -var='disk_size=61440'"
+      extra_vars += " -var=kubernetes_version=#{K8S_VERSION} -var=cpus=2 -var=memory=4096 -var=disk_size=61440"
     end
   end
 
