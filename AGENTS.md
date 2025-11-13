@@ -117,24 +117,27 @@ HCL style conventions:
 - Phase 3b: Clear logs, temporary files, zero free space (`_common/minimize.sh`)
 - Final step: Remove build-only library (`lib.sh`)
 
-**Library provisioning pattern:**
-1. Upload entire `scripts/` tree to `/tmp/packer-scripts`
-2. Install `_common/lib.sh` to `/usr/local/lib/k8s/lib.sh` (stable, root-owned)
-3. Run Phase 1 (may trigger reboot, which clears `/tmp`)
-4. Re-upload `scripts/` tree to `/tmp/packer-scripts` (after potential reboot)
-5. Run Phase 2 with `LIB_DIR=/usr/local/lib/k8s` and `LIB_SH=/usr/local/lib/k8s/lib.sh` environment variables
-6. Re-upload `scripts/` tree to `/tmp/packer-scripts`
-7. Run Phase 3a: `cleanup_debian.sh` (removes `/tmp` contents)
-8. Re-upload `scripts/` tree to `/tmp/packer-scripts` (after cleanup)
-9. Run Phase 3b: `minimize.sh`
-10. Final cleanup removes `/usr/local/lib/k8s/lib.sh` from box
+**Persistent Scripts Provisioning Pattern (Optimized):**
 
-**Critical**: Scripts are re-uploaded three times:
-- After Phase 1 (reboot clears `/tmp`)
-- Before Phase 3a (standard pre-phase upload)
-- After Phase 3a (cleanup_debian.sh removes `/tmp` contents)
+1. Upload entire `scripts/` tree to `/tmp/packer-scripts` (once, ephemeral)
+2. Copy entire tree to `/usr/local/lib/k8s/scripts/` (persistent, root-owned, survives reboots and cleanups)
+3. Run all phases referencing scripts from `/usr/local/lib/k8s/scripts/`
+   - Phase 1: `update_packages.sh` (may reboot - scripts survive)
+   - Phase 2: `sshd.sh`, `vagrant.sh`, `systemd_debian.sh`, etc.
+   - Phase 3a: `cleanup_debian.sh` (clears `/tmp` - scripts survive)
+   - Phase 3b: `minimize.sh`
+4. Final cleanup removes entire `/usr/local/lib/k8s/` directory
 
-The `lib.sh` library persists in `/usr/local/lib/k8s/` across all phases and is only removed in the final cleanup step.
+**Environment variables for all provisioners:**
+- `LIB_DIR=/usr/local/lib/k8s`
+- `LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh`
+
+**Key Benefits:**
+- Scripts uploaded only **once** (vs. 3 times in previous approach)
+- Survives system reboots (Phase 1)
+- Survives `/tmp` cleanup (Phase 3a)
+- Consistent with persistent library approach
+- Cleaner, more efficient provisioning flow
 
 ### lib.sh Library
 
@@ -149,6 +152,8 @@ The `packer_templates/scripts/_common/lib.sh` file is a comprehensive Bash libra
 - **Verification**: `lib::verify_commands`, `lib::verify_files`, `lib::verify_services`
 
 All provisioner scripts should source this library via: `source "${LIB_SH}"`
+
+**Note:** The library is located at `/usr/local/lib/k8s/scripts/_common/lib.sh` during the build and is automatically available through the `LIB_SH` environment variable passed to all provisioners.
 
 Script rules in brief (see `packer_templates/scripts/AGENTS.md` for details):
 - Bash only; strict mode and error traps via `lib::strict` and `lib::setup_traps`.

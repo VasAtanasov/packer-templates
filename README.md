@@ -1,17 +1,17 @@
 ---
 title: Packer Vagrant Box Builder (Debian + VirtualBox)
 status: Active
-version: 1.2.1
+version: 1.3.0
 scope: Minimal Packer build for Debian/VirtualBox with simple extension path
 ---
 
 # Packer Vagrant Box Builder (Debian + VirtualBox)
 
 Streamlined Packer setup for building Debian-based Vagrant boxes with VirtualBox.
-Grounded in the Bento approach but simplified for reliability on Windows/WSL2
-and for use in this Kubernetes course.
+Focused on Debian 12/13 with a single, unified template and a clear 3‑phase
+provisioning approach. Host‑agnostic (no WSL2‑specific behavior required).
 
-## What Changed (Now Even Simpler)
+## Highlights
 
 - Focused scope: Debian 12 and 13, VirtualBox only
 - Single template: `packer_templates/main.pkr.hcl` (plus `pkr-plugins.pkr.hcl`)
@@ -37,7 +37,7 @@ make debian-12        # Debian 12 x86_64 (recommended)
 - Packer >= 1.7.0
 - VirtualBox >= 7.1.6 (arm64 support)
 - Vagrant >= 2.4.0 (for testing)
-- Make (for using Makefile commands)
+- Make (Linux/macOS) or Rake (Windows) for convenience commands
 
 ## Common Commands
 
@@ -66,11 +66,12 @@ Provisioner strategy:
 
 ### Phase 1: System Preparation
 - Update all packages
-- Disable automatic updates (required for Kubernetes)
+- Disable automatic updates (for reproducible builds)
 
 ### Phase 2: OS Configuration
 - Install Vagrant user and SSH configuration
 - Configure networking, sudoers, systemd
+- Install VirtualBox Guest Additions (policy: install by default)
 
 ### Phase 3: Cleanup & Minimization
 - Remove unnecessary packages
@@ -82,7 +83,7 @@ Provisioner strategy:
 After building, the `.box` file is located in `builds/build_complete/`:
 
 ```bash
-# Add box to Vagrant
+# Add box to Vagrant (naming: <os>-<version>-<arch>.virtualbox.box)
 vagrant box add --name debian-12 \
   builds/build_complete/debian-12.12-x86_64.virtualbox.box
 
@@ -112,13 +113,13 @@ os_arch                   = "x86_64" # or aarch64
 iso_url                   = "https://cdimage.debian.org/..."
 iso_checksum              = "file:https://cdimage.debian.org/.../SHA256SUMS"
 vbox_guest_os_type        = "Debian12_64"
-vbox_guest_additions_mode = "disable"
+vbox_guest_additions_mode = "attach" # or "upload"; ensure the install script runs
 vbox_guest_additions_path = "VBoxGuestAdditions_{{ .Version }}.iso" # default
 boot_command              = [
   "<wait><esc><wait>auto preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/debian/preseed.cfg netcfg/get_hostname={{ .Name }}<enter>"
 ]
 
-# Optional: Custom VBoxManage commands (safe for WSL2)
+# Optional: Custom VBoxManage commands
 vboxmanage = [
   ["modifyvm", "{{.Name}}", "--chipset", "ich9"],
   ["modifyvm", "{{.Name}}", "--audio-enabled", "off"],
@@ -128,21 +129,16 @@ vboxmanage = [
 
 ## Troubleshooting
 
-### Windows/WSL2 Networking Issues
-
-If builds fail with network connectivity issues on WSL2, avoid
-`--nat-localhostreachable1`. Included templates already omit it.
-
 ### Guest Additions
 
-Guest Additions installation is disabled by default for reliability. If you
-need it, set `vbox_guest_additions_mode` to `attach` or `upload` and add an
-install step in a provisioner (or adapt `scripts/_common/guest_tools_virtualbox.sh`).
-You can override the ISO path via `vbox_guest_additions_path`.
+Boxes expect Guest Additions to be installed during provisioning. Ensure
+`vbox_guest_additions_mode` is set to `attach` or `upload` and that
+`scripts/_common/guest_tools_virtualbox.sh` is included in Phase 2. Override the
+ISO path via `vbox_guest_additions_path` if needed.
 
 ### Build Hangs at Boot
 
-Remove `headless = true` in your `.pkrvars.hcl` to view the VirtualBox GUI.
+Set `headless = false` in your `.pkrvars.hcl` to view the VirtualBox GUI.
 
 ## Simplified Architecture
 
@@ -172,7 +168,7 @@ When making changes:
 2. Use `lib.sh` helpers consistently
 3. Make scripts idempotent (safe to re-run)
 4. Test on both x86_64 and aarch64 when possible
-5. Update this README
+5. Update this README and CHANGELOG; add Doc Changelog entry to modified docs
 
 ## Resources
 
@@ -182,6 +178,7 @@ When making changes:
 
 | Version | Date       | Author     | Changes                                                |
 |---------|------------|------------|--------------------------------------------------------|
+| 1.3.0   | 2025-11-13 | repo-maint | Align with current repo state; host-agnostic; GA policy; docs parity |
 | 1.2.1   | 2025-11-12 | repo-maint | Remove lib.sh from final box via cleanup provisioner    |
 | 1.2.0   | 2025-11-12 | repo-maint | Add file+install for lib.sh and pass LIB_DIR/LIB_SH     |
 | 1.1.2   | 2025-11-12 | repo-maint | Ensure lib.sh availability via file+inline provisioners |
