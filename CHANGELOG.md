@@ -17,4 +17,9 @@ and this project adheres to Semantic Versioning where practical.
 ### Changed
 - Documentation now states Guest Additions are to be installed during provisioning.
 - Host stance clarified as agnostic (no WSL2‑specific accommodations required).
- - Rakefile updated to match Makefile environment checks and minimum version enforcement.
+- Rakefile updated to match Makefile environment checks and minimum version enforcement.
+ - Aligned documentation to the repo Documentation Standard (frontmatter + Doc Changelog across docs).
+ - Merged general Bash guidance into `packer_templates/scripts/AGENTS.md` and tailored to project.
+
+### Removed
+- Deleted `doc/CONTRIBUTING_BASH.md` in favor of consolidated guidance in `packer_templates/scripts/AGENTS.md`.

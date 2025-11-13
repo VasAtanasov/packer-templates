@@ -1,3 +1,10 @@
+---
+title: AGENTS (os_pkrvars Guidance)
+version: 1.1.0
+status: Active
+scope: os_pkrvars
+---
+
 # AGENTS.md (os_pkrvars)
 
 Guidance for creating and maintaining `.pkrvars.hcl` variable files under `os_pkrvars/`.
@@ -43,3 +50,9 @@ This file applies to `os_pkrvars/` and all subdirectories.
 - Build one: `make build TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl`
 - Debug (optional): set `headless = false` during troubleshooting.
 
+## Doc Changelog
+
+| Version | Date       | Changes                                                    |
+|---------|------------|------------------------------------------------------------|
+| 1.1.0   | 2025-11-13 | Added frontmatter; clarified required fields and examples. |
+| 1.0.0   | 2025-11-13 | Initial guidance for variable files.                       |

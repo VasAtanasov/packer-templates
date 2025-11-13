@@ -1,3 +1,10 @@
+---
+title: AGENTS (Root Guidance)
+version: 1.2.0
+status: Active
+scope: repo-wide
+---
+
 # AGENTS.md
 
 Guidance for any coding agent working in this repository. `CLAUDE.md` is a symlink to this file. This root document applies repository‑wide unless overridden by a more deeply nested `AGENTS.md`.
@@ -105,10 +112,10 @@ HCL style conventions:
 - Configure systemd, sudoers, networking (debian-specific scripts)
  - Install VirtualBox Guest Additions (policy: always install). See `scripts/_common/guest_tools_virtualbox.sh` and ensure `vbox_guest_additions_mode` is set appropriately.
 
-**Phase 3: Cleanup & Minimization**
-- Remove unnecessary packages (`debian/cleanup_debian.sh`)
-- Clear logs, temporary files, zero free space (`_common/minimize.sh`)
-- Remove build-only library (`lib.sh`)
+**Phase 3: Cleanup & Minimization** (split into 3a and 3b)
+- Phase 3a: Remove unnecessary packages (`debian/cleanup_debian.sh`)
+- Phase 3b: Clear logs, temporary files, zero free space (`_common/minimize.sh`)
+- Final step: Remove build-only library (`lib.sh`)
 
 **Library provisioning pattern:**
 1. Upload entire `scripts/` tree to `/tmp/packer-scripts`
@@ -297,10 +304,6 @@ make validate-one TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl  # Single templat
   - Doc Changelog block
     ```
     ## Doc Changelog
-    - <YYYY-MM-DD> v<x.y.z> Added/Changed/Fixed: <concise summary> (commit <shortsha>)
-    ```
-    ```
-    ## Document History
 
     | Version | Date         | Changes                                                    |
     |---------|--------------|------------------------------------------------------------|
@@ -317,3 +320,11 @@ make validate-one TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl  # Single templat
 - Note Makefile/Rakefile edits under Changed and confirm parity in the entry.
 - Keep entries concise; reference files/targets when helpful (e.g., `Makefile: check-env`).
 - When cutting a release, rename Unreleased to the version with date and start a fresh Unreleased section.
+
+## Doc Changelog
+
+| Version | Date       | Changes                                                                                  |
+|---------|------------|------------------------------------------------------------------------------------------|
+| 1.2.0   | 2025-11-13 | Added frontmatter; expanded documentation standard; parity note; fast dev loop added.   |
+| 1.1.0   | 2025-11-13 | Host-agnostic stance, Guest Additions policy, HCL conventions, reproducibility, DoD.     |
+| 1.0.0   | 2025-11-12 | Initial repository-wide guidance and commands overview.                                   |

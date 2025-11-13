@@ -1,5 +1,6 @@
 ---
-status: Guide
+title: Packer Vagrant Box Builder (Debian + VirtualBox)
+status: Active
 version: 1.2.1
 scope: Minimal Packer build for Debian/VirtualBox with simple extension path
 ---
@@ -177,7 +178,7 @@ When making changes:
 
 - Packer: https://www.packer.io/docs
 
-## Document History
+## Doc Changelog
 
 | Version | Date       | Author     | Changes                                                |
 |---------|------------|------------|--------------------------------------------------------|
@@ -185,4 +186,4 @@ When making changes:
 | 1.2.0   | 2025-11-12 | repo-maint | Add file+install for lib.sh and pass LIB_DIR/LIB_SH     |
 | 1.1.2   | 2025-11-12 | repo-maint | Ensure lib.sh availability via file+inline provisioners |
 | 1.1.1   | 2025-11-12 | repo-maint | Restore vbox_guest_additions_path variable              |
-| 1.1.0   | 2025-11-12 | repo-maint | Focused on Debian+VirtualBox; pruned legacy HCL files  |
+| 1.1.0   | 2025-11-12 | repo-maint | Focused on Debian+VirtualBox; pruned legacy HCL files   |
