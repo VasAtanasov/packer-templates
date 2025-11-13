@@ -183,9 +183,9 @@ build {
     inline = [
       "bash /usr/local/lib/k8s/scripts/_common/sshd.sh",
       "bash /usr/local/lib/k8s/scripts/_common/vagrant.sh",
-      "bash /usr/local/lib/k8s/scripts/debian/systemd_debian.sh",
-      "bash /usr/local/lib/k8s/scripts/debian/sudoers_debian.sh",
-      "bash /usr/local/lib/k8s/scripts/debian/networking_debian.sh",
+      "bash /usr/local/lib/k8s/scripts/debian/systemd.sh",
+      "bash /usr/local/lib/k8s/scripts/debian/sudoers.sh",
+      "bash /usr/local/lib/k8s/scripts/debian/networking.sh",
     ]
     environment_vars = [
       "LIB_DIR=/usr/local/lib/k8s",
@@ -197,7 +197,7 @@ build {
   // Phase 3a: Cleanup
   provisioner "shell" {
     inline = [
-      "bash /usr/local/lib/k8s/scripts/debian/cleanup_debian.sh",
+      "bash /usr/local/lib/k8s/scripts/debian/cleanup.sh",
     ]
     environment_vars = [
       "LIB_DIR=/usr/local/lib/k8s",

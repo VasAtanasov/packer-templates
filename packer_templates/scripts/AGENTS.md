@@ -1,6 +1,6 @@
 ---
 title: AGENTS (Scripts Guidance)
-version: 1.2.0
+version: 1.3.0
 status: Active
 scope: packer_templates/scripts
 ---
@@ -131,11 +131,43 @@ Examples
 
 ## Naming and Layout
 
-- Cross-distro helpers live in `_common/`. Distro specifics go under `debian/`.
-- Use descriptive, action-oriented filenames (e.g., `sshd.sh`, `vagrant.sh`,
-  `cleanup_debian.sh`).
-- Keep script responsibilities narrow. If a script grows large, split into logical
-  units and call them from a small orchestrator.
+The scripts directory follows a three-tier organization for scalability:
+
+```
+scripts/
+  _common/              # Cross-cutting utilities (OS-agnostic, provider-agnostic)
+    lib.sh              # Core library with 60+ helper functions
+    update_packages.sh  # System updates
+    sshd.sh             # SSH hardening
+    vagrant.sh          # Vagrant user setup
+    build_tools.sh      # Generic build tools
+    minimize.sh         # Cleanup and disk zeroing
+
+  providers/            # Provider integration layer (guest tools, drivers)
+    virtualbox/
+      guest_additions.sh # VirtualBox Guest Additions installer
+    hyperv/
+      integration_services.sh # Hyper-V integration services
+
+  debian/               # OS-specific configuration
+    systemd.sh          # Systemd configuration
+    sudoers.sh          # Sudoers configuration
+    networking.sh       # Network configuration
+    cleanup.sh          # OS-specific cleanup
+
+  ubuntu/               # Future: Ubuntu-specific scripts
+  rocky/                # Future: Rocky Linux-specific scripts
+```
+
+**Organization rules:**
+- `_common/` = Provider-agnostic + OS-family-agnostic scripts that work everywhere
+- `providers/{name}/` = Provider-specific integration (guest additions, drivers, services)
+- `{os}/` = OS-specific configuration (package managers, init systems, networking)
+
+**Naming conventions:**
+- Use descriptive, action-oriented filenames (e.g., `sshd.sh`, `vagrant.sh`, `cleanup.sh`)
+- Drop OS suffixes when files are already in OS-specific directories (e.g., `cleanup.sh` not `cleanup_debian.sh`)
+- Keep script responsibilities narrow; split large scripts into logical units
 
 ## Do/Don’t Quick List
 
@@ -148,6 +180,7 @@ Examples
 
 | Version | Date       | Changes                                                                                 |
 |---------|------------|-----------------------------------------------------------------------------------------|
+| 1.3.0   | 2025-11-13 | Restructured directory layout: added providers/ tier; renamed debian scripts.           |
 | 1.2.0   | 2025-11-13 | Merged general Bash guidance; focused on this project; removed K8s/Azure specifics.     |
 | 1.1.0   | 2025-11-13 | Align header to root standard; clarify apt non-interactive; verifiers.                  |
 | 1.0.0   | 2025-11-13 | Initial version aligned to root documentation standard.                                 |
