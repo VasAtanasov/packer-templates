@@ -11,9 +11,16 @@ RED    := \033[0;31m
 RESET  := \033[0m
 
 # Directories
-TEMPLATE_DIR := packer_templates
-PKRVARS_DIR  := os_pkrvars
-BUILDS_DIR   := builds
+TEMPLATE_DIR_BASE := packer_templates
+PKRVARS_DIR       := os_pkrvars
+BUILDS_DIR        := builds
+
+# Default provider and OS
+PROVIDER ?= virtualbox
+OS       ?= debian
+
+# Default Kubernetes version for k8s-node variant
+K8S_VERSION ?= 1.33
 
 # Minimum versions
 PACKER_MIN_VER ?= 1.7.0
@@ -34,54 +41,59 @@ help: ## Display this help message
 ##@ Validation
 
 .PHONY: validate
-validate: ## Validate all Packer templates
-	@echo -e "$(GREEN)Validating all Packer templates...$(RESET)\n"
-	@for template in $(PKRVARS_FILES); do \
-		template_dir=$$(dirname $$template); \
-		filename=$$(basename $$template); \
-		echo -e "\n$(GREEN)Validating $$template$(RESET)\n"; \
-		(cd $$template_dir && packer validate -var-file=$$filename ../../$(TEMPLATE_DIR)) || { \
-			echo -e "$(RED)Validation failed for $$template$(RESET)"; \
+validate: ## Validate all Packer templates for current provider/OS
+	@echo -e "$(GREEN)Validating $(PROVIDER)/$(OS) templates...$(RESET)\n"
+	@template_dir=$(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(OS); \
+	for var_file in $(PKRVARS_FILES); do \
+		echo -e "\n$(GREEN)Validating with $$var_file$(RESET)\n"; \
+		packer validate -var-file=$$var_file $$template_dir || { \
+			echo -e "$(RED)Validation failed for $$var_file$(RESET)"; \
 			exit 1; \
 		}; \
 	done
 	@echo -e "\n$(GREEN)All templates validated successfully!$(RESET)"
 
 .PHONY: validate-one
-validate-one: ## Validate a single template (usage: make validate-one TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl)
+validate-one: ## Validate a single template (usage: make validate-one TEMPLATE=debian/12-x86_64.pkrvars.hcl)
 ifndef TEMPLATE
 	@echo -e "$(RED)Error: TEMPLATE variable not set$(RESET)"
-	@echo "Usage: make validate-one TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl"
+	@echo "Usage: make validate-one TEMPLATE=debian/12-x86_64.pkrvars.hcl [PROVIDER=virtualbox] [OS=debian]"
 	@exit 1
 endif
-	@template_path=$(PKRVARS_DIR)/$(TEMPLATE); \
-	template_dir=$$(dirname $$template_path); \
-	filename=$$(basename $$template_path); \
-	echo -e "$(GREEN)Validating $$template_path$(RESET)\n"; \
-	(cd $$template_dir && packer validate -var-file=$$filename ../../$(TEMPLATE_DIR))
+	@template_dir=$(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(OS); \
+	var_file=$(PKRVARS_DIR)/$(TEMPLATE); \
+	echo -e "$(GREEN)Validating $(PROVIDER)/$(OS) with $$var_file$(RESET)\n"; \
+	packer validate -var-file=$$var_file $$template_dir
 
 ##@ Building
 
 .PHONY: init
-init: ## Initialize Packer plugins
-	@echo -e "$(GREEN)Initializing Packer plugins...$(RESET)"
-	@cd $(TEMPLATE_DIR) && packer init .
+init: ## Initialize Packer plugins for default provider/OS
+	@echo -e "$(GREEN)Initializing Packer plugins for $(PROVIDER)/$(OS)...$(RESET)"
+	@cd $(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(OS) && packer init .
 
 .PHONY: build
-build: init ## Build a specific box (usage: make build TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl)
+build: init ## Build a specific box (usage: make build TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node])
 ifndef TEMPLATE
 	@echo -e "$(RED)Error: TEMPLATE variable not set$(RESET)"
-	@echo "Usage: make build TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl"
+	@echo "Usage: make build TEMPLATE=debian/12-x86_64.pkrvars.hcl [PROVIDER=virtualbox] [OS=debian] [VARIANT=k8s-node]"
 	@exit 1
 endif
-	@template_path=$(PKRVARS_DIR)/$(TEMPLATE); \
-	template_dir=$$(dirname $$template_path); \
-	filename=$$(basename $$template_path); \
-	echo -e "$(GREEN)Building box from $$template_path$(RESET)\n"; \
-	(cd $$template_dir && packer build \
-		-var-file=$$filename \
-		-only=$(PROVIDERS) \
-		../../$(TEMPLATE_DIR))
+	@template_dir=$(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(OS); \
+	var_file=$(PKRVARS_DIR)/$(TEMPLATE); \
+	extra_vars=""; \
+	if [ -n "$(VARIANT)" ]; then \
+		extra_vars="-var='variant=$(VARIANT)'"; \
+		if [ "$(VARIANT)" = "k8s-node" ]; then \
+			extra_vars="$$extra_vars -var='kubernetes_version=$(K8S_VERSION)' -var='cpus=2' -var='memory=4096' -var='disk_size=61440'"; \
+		fi; \
+	fi; \
+	echo -e "$(GREEN)Building $(PROVIDER)/$(OS) from $$var_file$(RESET)"; \
+	if [ -n "$(VARIANT)" ]; then echo -e "$(YELLOW)Variant: $(VARIANT)$(RESET)"; fi; \
+	packer build \
+		-var-file=$$var_file \
+		$$extra_vars \
+		$$template_dir
 
 .PHONY: build-all
 build-all: init ## Build all boxes
@@ -156,49 +168,52 @@ endif
 		-var-file=$$filename \
 		../../$(TEMPLATE_DIR))
 
-##@ Quick Builds (Debian)
+##@ Quick Builds (VirtualBox + Debian)
 
 .PHONY: debian-12
 debian-12: ## Build Debian 12 x86_64 base box
-	@$(MAKE) build TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl
+	@$(MAKE) build TEMPLATE=debian/12-x86_64.pkrvars.hcl
 
 .PHONY: debian-12-arm
 debian-12-arm: ## Build Debian 12 aarch64 base box
-	@$(MAKE) build TEMPLATE=debian/debian-12-aarch64.pkrvars.hcl
+	@$(MAKE) build TEMPLATE=debian/12-aarch64.pkrvars.hcl
 
 .PHONY: debian-12-k8s
 debian-12-k8s: ## Build Debian 12 x86_64 Kubernetes node box
-	@$(MAKE) build TEMPLATE=debian/debian-12-x86_64-k8s-node.pkrvars.hcl
+	@$(MAKE) build TEMPLATE=debian/12-x86_64.pkrvars.hcl VARIANT=k8s-node
 
 .PHONY: debian-12-arm-k8s
 debian-12-arm-k8s: ## Build Debian 12 aarch64 Kubernetes node box
-	@$(MAKE) build TEMPLATE=debian/debian-12-aarch64-k8s-node.pkrvars.hcl
+	@$(MAKE) build TEMPLATE=debian/12-aarch64.pkrvars.hcl VARIANT=k8s-node
 
 .PHONY: debian-12-docker
 debian-12-docker: ## Build Debian 12 x86_64 Docker host box
-	@$(MAKE) build TEMPLATE=debian/debian-12-x86_64-docker-host.pkrvars.hcl
+	@$(MAKE) build TEMPLATE=debian/12-x86_64.pkrvars.hcl VARIANT=docker-host
 
 .PHONY: debian-12-arm-docker
 debian-12-arm-docker: ## Build Debian 12 aarch64 Docker host box
-	@$(MAKE) build TEMPLATE=debian/debian-12-aarch64-docker-host.pkrvars.hcl
+	@$(MAKE) build TEMPLATE=debian/12-aarch64.pkrvars.hcl VARIANT=docker-host
 
 .PHONY: debian-13
 debian-13: ## Build Debian 13 x86_64 base box
-	@$(MAKE) build TEMPLATE=debian/debian-13-x86_64.pkrvars.hcl
+	@$(MAKE) build TEMPLATE=debian/13-x86_64.pkrvars.hcl
 
 .PHONY: debian-13-arm
 debian-13-arm: ## Build Debian 13 aarch64 base box
-	@$(MAKE) build TEMPLATE=debian/debian-13-aarch64.pkrvars.hcl
+	@$(MAKE) build TEMPLATE=debian/13-aarch64.pkrvars.hcl
 
 ##@ Development
 
 .PHONY: debug
 debug: ## Show debug information
 	@echo -e "$(GREEN)Packer Configuration Debug Info$(RESET)"
-	@echo "TEMPLATE_DIR: $(TEMPLATE_DIR)"
-	@echo "PKRVARS_DIR:  $(PKRVARS_DIR)"
-	@echo "BUILDS_DIR:   $(BUILDS_DIR)"
-	@echo "PROVIDERS:    $(PROVIDERS)"
+	@echo "TEMPLATE_DIR_BASE: $(TEMPLATE_DIR_BASE)"
+	@echo "PROVIDER:          $(PROVIDER)"
+	@echo "OS:                $(OS)"
+	@echo "Template Dir:      $(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(OS)"
+	@echo "PKRVARS_DIR:       $(PKRVARS_DIR)"
+	@echo "BUILDS_DIR:        $(BUILDS_DIR)"
+	@echo "K8S_VERSION:       $(K8S_VERSION)"
 	@echo ""
 	@echo -e "$(GREEN)Packer version:$(RESET)"
 	@packer version || echo "Packer not found in PATH"
@@ -211,8 +226,9 @@ check-env: ## Check environment and dependencies
 	@echo -e "$(GREEN)Checking environment...$(RESET)"
 	@command -v packer >/dev/null 2>&1 || { echo -e "$(RED)Error: packer not found$(RESET)"; exit 1; }
 	@command -v VBoxManage >/dev/null 2>&1 || { echo -e "$(RED)Error: VBoxManage not found (required for VirtualBox builds)$(RESET)"; exit 1; }
-	@[ -d "$(TEMPLATE_DIR)" ] || { echo -e "$(RED)Error: $(TEMPLATE_DIR) directory not found$(RESET)"; exit 1; }
+	@[ -d "$(TEMPLATE_DIR_BASE)" ] || { echo -e "$(RED)Error: $(TEMPLATE_DIR_BASE) directory not found$(RESET)"; exit 1; }
 	@[ -d "$(PKRVARS_DIR)" ] || { echo -e "$(RED)Error: $(PKRVARS_DIR) directory not found$(RESET)"; exit 1; }
+	@[ -d "$(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(OS)" ] || { echo -e "$(RED)Error: $(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(OS) directory not found$(RESET)"; exit 1; }
 	@# Version checks (fail early)
 	@pv=$$(packer version | sed -n 's/.*v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -n1); \
 		if [ -z "$$pv" ]; then echo -e "$(RED)Error: unable to parse Packer version$(RESET)"; exit 1; fi; \

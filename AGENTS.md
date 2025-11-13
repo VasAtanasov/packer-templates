@@ -1,6 +1,6 @@
 ---
 title: AGENTS (Root Guidance)
-version: 1.3.0
+version: 2.0.0
 status: Active
 scope: repo-wide
 ---
@@ -17,13 +17,13 @@ Guidance for any coding agent working in this repository. `CLAUDE.md` is a symli
   - `os_pkrvars/AGENTS.md` – authoring `.pkrvars.hcl` files.
 
 ## Minimum Tool Versions
-- Packer: >= 1.7.0 (enforced via `packer_templates/pkr-plugins.pkr.hcl`).
+- Packer: >= 1.7.0 (enforced via `packer_templates/*/pkr-plugins.pkr.hcl`).
 - VirtualBox: >= 7.1.6 (for reliable aarch64 support).
-- `make check-env` should be used before builds and fails early if requirements are unmet.
+- `make check-env` or `rake check_env` should be used before builds and fails early if requirements are unmet.
 
 ## Project Overview
 
-This is a Packer repository for building Debian-based Vagrant boxes for VirtualBox. The project is streamlined and focused on Debian 12/13 with a clear 3-phase provisioning approach. The project is host‑agnostic; no WSL2‑specific accommodations are required.
+This is a Packer repository for building Debian-based Vagrant boxes supporting multiple providers (VirtualBox, with VMware and QEMU planned). The project uses a **Provider × OS** matrix organization (e.g., `packer_templates/virtualbox/debian/`) to support future expansion to Ubuntu and AlmaLinux without refactoring. Currently focused on Debian 12/13 with VirtualBox, using a clear 3-phase provisioning approach. The project is host‑agnostic; no WSL2‑specific accommodations are required.
 
 ## Build Commands
 
@@ -48,18 +48,28 @@ make debian-12-arm-docker   # Build Debian 12 aarch64 Docker host
 ```bash
 make check-env          # Verify environment and dependencies
 make init               # Initialize Packer plugins (required before first build)
-make build TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl  # Build specific template
-make validate           # Validate all templates
-make validate-one TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl  # Validate single template
+make build TEMPLATE=debian/12-x86_64.pkrvars.hcl  # Build specific base box
+make build TEMPLATE=debian/12-x86_64.pkrvars.hcl VARIANT=k8s-node  # Build with variant
+make validate           # Validate all templates for current PROVIDER/OS
+make validate-one TEMPLATE=debian/12-x86_64.pkrvars.hcl  # Validate single template
 make clean              # Remove build artifacts
 make list-templates     # Show available templates
 make list-builds        # Show built boxes
+make debug              # Show configuration (PROVIDER, OS, template dir, etc.)
 ```
 
 ### Manual Build (from command line)
 ```bash
-cd os_pkrvars/debian
-packer build -var-file=debian-12-x86_64.pkrvars.hcl ../../packer_templates
+# Base box
+packer build -var-file=os_pkrvars/debian/12-x86_64.pkrvars.hcl packer_templates/virtualbox/debian/
+
+# With variant
+packer build \
+  -var-file=os_pkrvars/debian/12-x86_64.pkrvars.hcl \
+  -var='variant=k8s-node' \
+  -var='kubernetes_version=1.33' \
+  -var='cpus=2' -var='memory=4096' -var='disk_size=61440' \
+  packer_templates/virtualbox/debian/
 ```
 
 ## Architecture
@@ -67,43 +77,58 @@ packer build -var-file=debian-12-x86_64.pkrvars.hcl ../../packer_templates
 ### Directory Structure
 ```
 packer_templates/
-  main.pkr.hcl              # Single unified template (variables + source + build)
-  pkr-plugins.pkr.hcl       # Required plugins (virtualbox, vagrant)
-  http/debian/preseed.cfg   # Debian installer preseed configuration
-  scripts/
+  virtualbox/               # VirtualBox provider templates
+    debian/                 # Debian OS templates for VirtualBox
+      sources.pkr.hcl       # Variables, locals, and source definition
+      builds.pkr.hcl        # Build block and provisioning logic
+      pkr-plugins.pkr.hcl   # Required plugins (virtualbox, vagrant)
+      http/                 # HTTP server files for installer
+        preseed.cfg         # Debian preseed configuration
+  vmware/                   # VMware provider templates (planned)
+    debian/                 # Debian OS templates for VMware (planned)
+  qemu/                     # QEMU provider templates (planned)
+  scripts/                  # Shared provisioning scripts
     _common/                # Cross-distro scripts (vagrant, sshd, minimize, etc.)
       lib.sh                # Shared Bash library with 60+ helper functions
     debian/                 # Debian-specific scripts
     providers/              # Provider-specific integration scripts
       virtualbox/           # VirtualBox Guest Additions
-      hyperv/               # Hyper-V Integration Services
+      hyperv/               # Hyper-V Integration Services (planned)
     variants/               # Variant-specific provisioning scripts
       k8s-node/             # Kubernetes node variant
       docker-host/          # Docker host variant
 
 os_pkrvars/
   debian/                   # Debian variable files
-    debian-12-x86_64.pkrvars.hcl                  # Base box
-    debian-12-aarch64.pkrvars.hcl                 # Base box (ARM)
-    debian-12-x86_64-k8s-node.pkrvars.hcl         # K8s variant
-    debian-12-aarch64-k8s-node.pkrvars.hcl        # K8s variant (ARM)
-    debian-12-x86_64-docker-host.pkrvars.hcl      # Docker variant
-    debian-12-aarch64-docker-host.pkrvars.hcl     # Docker variant (ARM)
+    12-x86_64.pkrvars.hcl   # Debian 12 x86_64 (base + all variants via -var flags)
+    12-aarch64.pkrvars.hcl  # Debian 12 aarch64 (base + all variants via -var flags)
+    13-x86_64.pkrvars.hcl   # Debian 13 x86_64 (base + all variants via -var flags)
+    13-aarch64.pkrvars.hcl  # Debian 13 aarch64 (base + all variants via -var flags)
 
 builds/
-  iso/                      # Downloaded ISOs
+  iso/                      # Downloaded ISOs (cached by URL hash)
   build_files/              # Intermediate build files
   build_complete/           # Final .box files
 ```
 
 ### Template Architecture
 
-The project uses a **single unified template** (`main.pkr.hcl`) that handles all OS × Variant combinations. This prevents template explosion and maintains a single source of truth for build logic.
+The project uses a **Provider × OS matrix** organization with templates split into two files per provider/OS combination:
+
+- **`sources.pkr.hcl`**: Variables, locals, and source definition (virtualbox-iso, vmware-iso, etc.)
+- **`builds.pkr.hcl`**: Build block with provisioning logic and post-processors
+
+**Why this split:**
+- **Packer auto-aggregation**: All `.pkr.hcl` files in a directory are automatically combined
+- **No import blocks**: Packer doesn't support import statements (unlike Terraform)
+- **Provider isolation**: VirtualBox-specific config in `virtualbox/debian/`, VMware in `vmware/debian/`, etc.
+- **Variant via flags**: Variants passed via `-var='variant=k8s-node'` instead of separate files
+- **Future-proof**: Adding Ubuntu/AlmaLinux = add `<provider>/ubuntu/` directory, no refactoring
 
 **Key variables:**
 - `os_name`, `os_version`, `os_arch` - OS identification
 - `iso_url`, `iso_checksum` - ISO source and verification
-- `vbox_guest_os_type` - VirtualBox guest OS type
+- `vbox_guest_os_type` - VirtualBox guest OS type (provider-specific)
 - `boot_command` - Installer boot command sequence
 - `vboxmanage` - Custom VBoxManage commands (auto-configured per architecture)
 - `variant` - Box variant: "base" (minimal), "k8s-node", "docker-host"
@@ -112,7 +137,8 @@ The project uses a **single unified template** (`main.pkr.hcl`) that handles all
 HCL style conventions:
 - Use snake_case for variable names and filenames.
 - Required in `.pkrvars.hcl`: `os_name`, `os_version`, `os_arch`, `iso_url`, `iso_checksum`, `vbox_guest_os_type`, `boot_command`.
-- Always provide checksums using Debian’s published SHA256 lists via `file:` URLs (example in `os_pkrvars/debian`).
+- Always provide checksums using Debian's published SHA256 lists via `file:` URLs (example in `os_pkrvars/debian`).
+- Variable files simplified: `12-x86_64.pkrvars.hcl` instead of `debian-12-x86_64-k8s-node.pkrvars.hcl`
 
 **Architecture-specific defaults:**
 - x86_64: ich9 chipset, SATA storage
@@ -184,25 +210,36 @@ Script rules in brief (see `packer_templates/scripts/AGENTS.md` for details):
 
 ## Adding New Content
 
-### Adding a New Distro
-1. Create `os_pkrvars/<distro>/` directory
-2. Add `.pkrvars.hcl` files with distro-specific variables
-3. Create `packer_templates/scripts/<distro>/` if distro-specific scripts needed
-4. Add corresponding `http/<distro>/` preseed/kickstart files
-5. Add make targets in `Makefile` for convenience
+### Adding a New Distro (e.g., Ubuntu)
+1. Create `packer_templates/virtualbox/ubuntu/` directory
+2. Copy `virtualbox/debian/sources.pkr.hcl` and `builds.pkr.hcl` as templates
+3. Copy `virtualbox/debian/pkr-plugins.pkr.hcl` (unchanged)
+4. Create `virtualbox/ubuntu/http/` with Ubuntu preseed/autoinstall files
+5. Create `os_pkrvars/ubuntu/` directory with `.pkrvars.hcl` files:
+   - `22.04-x86_64.pkrvars.hcl`
+   - `22.04-aarch64.pkrvars.hcl`
+   - `24.04-x86_64.pkrvars.hcl`
+   - `24.04-aarch64.pkrvars.hcl`
+6. Create `packer_templates/scripts/ubuntu/` if distro-specific scripts needed
+7. Update source name in `sources.pkr.hcl`: `source "virtualbox-iso" "ubuntu"`
+8. Add make/rake targets: `ubuntu-22-04`, `ubuntu-24-04`, etc.
+9. Test: `make build TEMPLATE=ubuntu/22.04-x86_64.pkrvars.hcl PROVIDER=virtualbox OS=ubuntu`
 
-### Adding a New Provider
-1. Add new `source` block in `packer_templates/main.pkr.hcl`
-2. Add to `sources` list in `build {}` block
-3. Update `pkr-plugins.pkr.hcl` with required plugin
-4. Create `providers/{name}/` with `install_dependencies.sh` and integration script
-5. Add provider phases to template (Phase 2a and 2b)
-6. Create make targets with `PROVIDERS=<provider-name>`
+### Adding a New Provider (e.g., VMware)
+1. Create `packer_templates/vmware/debian/` directory
+2. Create `sources.pkr.hcl` with `source "vmware-iso" "debian"` block
+3. Create `builds.pkr.hcl` (can largely copy from VirtualBox, adjust paths)
+4. Create `pkr-plugins.pkr.hcl` with VMware plugin requirements
+5. Create `vmware/debian/http/` and copy preseed files
+6. Create `packer_templates/scripts/providers/vmware/` for VMware Tools integration
+7. Update provisioning in `builds.pkr.hcl` Phase 2 to include VMware Tools
+8. Add make/rake targets or use: `make build TEMPLATE=debian/12-x86_64.pkrvars.hcl PROVIDER=vmware OS=debian`
+9. Repeat for each OS (ubuntu, almalinux) by creating `vmware/<os>/` directories
 
 ### Adding a New Variant
 1. Create `packer_templates/scripts/variants/{name}/` directory
 2. Write ordered scripts for the variant (e.g., `install.sh`, `configure.sh`)
-3. Add variant to `variant_scripts` map in `main.pkr.hcl`:
+3. Add variant to `variant_scripts` map in `builds.pkr.hcl`:
    ```hcl
    variant_scripts = {
      "k8s-node" = [...],
@@ -212,10 +249,14 @@ Script rules in brief (see `packer_templates/scripts/AGENTS.md` for details):
      ],
    }
    ```
-4. Update `variant` variable validation to include new variant
-5. Create `.pkrvars.hcl` files with `variant = "new-variant"` and any variant-specific variables
-6. Add make targets for convenience builds (e.g., `debian-12-new-variant`)
-7. Test variant on both x86_64 and aarch64 where applicable
+4. Update `variant` variable validation in `sources.pkr.hcl` to include new variant
+5. Add convenience make/rake targets:
+   ```makefile
+   debian-12-new-variant:
+     @$(MAKE) build TEMPLATE=debian/12-x86_64.pkrvars.hcl VARIANT=new-variant
+   ```
+6. Test variant: `make build TEMPLATE=debian/12-x86_64.pkrvars.hcl VARIANT=new-variant`
+7. Test on both x86_64 and aarch64 where applicable
 
 ### Writing Provisioner Scripts
 - Source lib.sh: `source "${LIB_SH}"`
@@ -250,8 +291,15 @@ vagrant box add --name debian-12 builds/build_complete/debian-12.12-x86_64.virtu
 
 Always validate templates before building:
 ```bash
-make validate              # All templates
-make validate-one TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl  # Single template
+make validate              # All templates for current PROVIDER/OS
+make validate-one TEMPLATE=debian/12-x86_64.pkrvars.hcl  # Single template
+
+# Or with Rake (Windows)
+rake validate
+rake validate_one TEMPLATE=debian/12-x86_64.pkrvars.hcl
+
+# Change provider/OS
+make validate PROVIDER=vmware OS=ubuntu  # Future: validate VMware Ubuntu templates
 ```
 
 ## Debugging Builds
@@ -288,10 +336,13 @@ make validate-one TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl  # Single templat
 
 ## Fast Dev Loop
 
-- Validate: `make validate-one TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl`
-- Build: `make build TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl`
+- Validate: `make validate-one TEMPLATE=debian/12-x86_64.pkrvars.hcl`
+- Build base: `make build TEMPLATE=debian/12-x86_64.pkrvars.hcl`
+- Build variant: `make build TEMPLATE=debian/12-x86_64.pkrvars.hcl VARIANT=k8s-node`
+- Or use convenience: `make debian-12` (base) or `make debian-12-k8s` (variant)
 - Test: add the built box with `vagrant box add --name debian-12 builds/build_complete/debian-12.12-x86_64.virtualbox.box` and run a minimal Vagrantfile.
 - Debug: set `headless = false` temporarily in the `.pkrvars.hcl` under test.
+- Quick check: `make debug` to see current PROVIDER/OS/template directory configuration
 
 ## Security and Integrity
 
@@ -375,6 +426,7 @@ make validate-one TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl  # Single templat
 
 | Version | Date       | Changes                                                                                  |
 |---------|------------|------------------------------------------------------------------------------------------|
+| 2.0.0   | 2025-11-13 | **BREAKING**: Provider × OS matrix restructure; split templates (sources/builds); simplified variable files (12-x86_64.pkrvars.hcl); variant-via-flags approach; updated all build/validation commands. |
 | 1.3.0   | 2025-11-13 | Added variant system; directory structure; Phase 2d; K8s build targets; DoD updated.     |
 | 1.2.0   | 2025-11-13 | Added frontmatter; expanded documentation standard; parity note; fast dev loop added.   |
 | 1.1.0   | 2025-11-13 | Host-agnostic stance, Guest Additions policy, HCL conventions, reproducibility, DoD.     |

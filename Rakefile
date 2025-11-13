@@ -9,12 +9,16 @@ RED = "\e[31m"
 RESET = "\e[0m"
 
 # Directories
-TEMPLATE_DIR = 'packer_templates'
+TEMPLATE_DIR_BASE = 'packer_templates'
 PKRVARS_DIR = 'os_pkrvars'
 BUILDS_DIR = 'builds'
 
-# Build configuration
-PROVIDERS = ENV['PROVIDERS'] || 'virtualbox-iso.vm'
+# Default provider and OS
+PROVIDER = ENV['PROVIDER'] || 'virtualbox'
+OS = ENV['OS'] || 'debian'
+
+# Default Kubernetes version for k8s-node variant
+K8S_VERSION = ENV['K8S_VERSION'] || '1.33'
 
 # Minimum versions (overridable via env)
 PACKER_MIN_VER = ENV['PACKER_MIN_VER'] || '1.7.0'
@@ -32,10 +36,24 @@ task :help do
   puts "\nUsage:"
   puts "  rake #{GREEN}<task>#{RESET}\n\n"
 
-  # Extract task descriptions
-  Rake.application.tasks.each do |task|
-    puts "  #{GREEN}%-15s#{RESET} %s" % [task.name, task.comment] if task.comment
+  # Get task list from rake -T and colorize it
+  require 'open3'
+  stdout, stderr, status = Open3.capture3('rake -T')
+
+  if status.success?
+    stdout.each_line do |line|
+      if line =~ /^rake\s+(\S+)\s+#\s+(.+)/
+        task_name = $1
+        description = $2
+        puts "  #{GREEN}%-20s#{RESET} %s" % [task_name, description]
+      end
+    end
+  else
+    # Fallback to simple list
+    puts "Available tasks:"
+    puts "  Run 'rake -T' to see all available tasks"
   end
+
   puts
 end
 
@@ -43,22 +61,19 @@ task default: :help
 
 ##@ Validation
 
-desc 'Validate all Packer templates'
+desc 'Validate all Packer templates for current provider/OS'
 task :validate do
-  puts "#{GREEN}Validating all Packer templates...#{RESET}\n\n"
+  puts "#{GREEN}Validating #{PROVIDER}/#{OS} templates...#{RESET}\n\n"
 
+  template_dir = "#{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{OS}"
   failed = []
-  pkrvars_files.each do |template_path|
-    template_dir = File.dirname(template_path)
-    filename = File.basename(template_path)
 
-    puts "\n#{GREEN}Validating #{template_path}#{RESET}\n\n"
+  pkrvars_files.each do |var_file|
+    puts "\n#{GREEN}Validating with #{var_file}#{RESET}\n\n"
 
-    success = Dir.chdir(template_dir) do
-      system("packer validate -var-file=#{filename} ../../#{TEMPLATE_DIR}")
-    end
+    success = system("packer validate -var-file=#{var_file} #{template_dir}")
 
-    failed << template_path unless success
+    failed << var_file unless success
   end
 
   if failed.empty?
@@ -70,78 +85,80 @@ task :validate do
   end
 end
 
-desc 'Validate a single template (usage: rake validate_one TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl)'
+desc 'Validate a single template (usage: rake validate_one TEMPLATE=debian/12-x86_64.pkrvars.hcl)'
 task :validate_one do
   template = ENV['TEMPLATE']
 
   unless template
     puts "#{RED}Error: TEMPLATE variable not set#{RESET}"
-    puts "Usage: rake validate_one TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl"
+    puts "Usage: rake validate_one TEMPLATE=debian/12-x86_64.pkrvars.hcl [PROVIDER=virtualbox] [OS=debian]"
     exit 1
   end
 
-  template_path = File.join(PKRVARS_DIR, template)
-  template_dir = File.dirname(template_path)
-  filename = File.basename(template_path)
+  template_dir = "#{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{OS}"
+  var_file = File.join(PKRVARS_DIR, template)
 
-  puts "#{GREEN}Validating #{template_path}#{RESET}\n\n"
+  puts "#{GREEN}Validating #{PROVIDER}/#{OS} with #{var_file}#{RESET}\n\n"
 
-  success = Dir.chdir(template_dir) do
-    system("packer validate -var-file=#{filename} ../../#{TEMPLATE_DIR}")
-  end
+  success = system("packer validate -var-file=#{var_file} #{template_dir}")
 
   exit 1 unless success
 end
 
 ##@ Building
 
-desc 'Initialize Packer plugins'
+desc 'Initialize Packer plugins for default provider/OS'
 task :init do
-  puts "#{GREEN}Initializing Packer plugins...#{RESET}"
-  Dir.chdir(TEMPLATE_DIR) do
+  puts "#{GREEN}Initializing Packer plugins for #{PROVIDER}/#{OS}...#{RESET}"
+  template_dir = "#{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{OS}"
+  Dir.chdir(template_dir) do
     system('packer init .')
   end
 end
 
-desc 'Build a specific box (usage: rake build TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl)'
+desc 'Build a specific box (usage: rake build TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node])'
 task build: :init do
   template = ENV['TEMPLATE']
+  variant = ENV['VARIANT']
 
   unless template
     puts "#{RED}Error: TEMPLATE variable not set#{RESET}"
-    puts "Usage: rake build TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl"
+    puts "Usage: rake build TEMPLATE=debian/12-x86_64.pkrvars.hcl [PROVIDER=virtualbox] [OS=debian] [VARIANT=k8s-node]"
     exit 1
   end
 
-  template_path = File.join(PKRVARS_DIR, template)
-  template_dir = File.dirname(template_path)
-  filename = File.basename(template_path)
+  template_dir = "#{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{OS}"
+  var_file = File.join(PKRVARS_DIR, template)
 
-  puts "#{GREEN}Building box from #{template_path}#{RESET}\n\n"
-
-  success = Dir.chdir(template_dir) do
-    system("packer build -var-file=#{filename} -only=#{PROVIDERS} ../../#{TEMPLATE_DIR}")
+  extra_vars = ""
+  if variant && !variant.empty?
+    extra_vars = "-var='variant=#{variant}'"
+    if variant == "k8s-node"
+      extra_vars += " -var='kubernetes_version=#{K8S_VERSION}' -var='cpus=2' -var='memory=4096' -var='disk_size=61440'"
+    end
   end
+
+  puts "#{GREEN}Building #{PROVIDER}/#{OS} from #{var_file}#{RESET}"
+  puts "#{YELLOW}Variant: #{variant}#{RESET}" if variant && !variant.empty?
+
+  success = system("packer build -var-file=#{var_file} #{extra_vars} #{template_dir}")
 
   exit 1 unless success
 end
 
-desc 'Build all boxes'
+desc 'Build all boxes for current provider/OS'
 task build_all: :init do
-  puts "#{GREEN}Building all boxes...#{RESET}\n\n"
+  puts "#{GREEN}Building all boxes for #{PROVIDER}/#{OS}...#{RESET}\n\n"
 
+  template_dir = "#{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{OS}"
   failed = []
-  pkrvars_files.each do |template_path|
-    template_dir = File.dirname(template_path)
-    filename = File.basename(template_path)
 
-    puts "\n#{GREEN}Building #{template_path}#{RESET}\n\n"
+  pkrvars_files.each do |var_file|
+    puts "\n#{GREEN}Building #{var_file}#{RESET}\n\n"
 
-    success = Dir.chdir(template_dir) do
-      system("packer build -var-file=#{filename} -only=#{PROVIDERS} ../../#{TEMPLATE_DIR}")
-    end
+    success = system("packer build -var-file=#{var_file} #{template_dir}")
 
-    failed << template_path unless success
+    failed << var_file unless success
   end
 
   if failed.empty?
@@ -205,74 +222,75 @@ task :list_builds do
   end
 end
 
-desc 'Inspect a template (usage: rake inspect TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl)'
+desc 'Inspect a template (usage: rake inspect TEMPLATE=debian/12-x86_64.pkrvars.hcl)'
 task :inspect do
   template = ENV['TEMPLATE']
 
   unless template
     puts "#{RED}Error: TEMPLATE variable not set#{RESET}"
-    puts "Usage: rake inspect TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl"
+    puts "Usage: rake inspect TEMPLATE=debian/12-x86_64.pkrvars.hcl [PROVIDER=virtualbox] [OS=debian]"
     exit 1
   end
 
-  template_path = File.join(PKRVARS_DIR, template)
-  template_dir = File.dirname(template_path)
-  filename = File.basename(template_path)
+  template_dir = "#{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{OS}"
+  var_file = File.join(PKRVARS_DIR, template)
 
-  puts "#{GREEN}Inspecting #{template_path}#{RESET}\n\n"
+  puts "#{GREEN}Inspecting #{PROVIDER}/#{OS} with #{var_file}#{RESET}\n\n"
 
-  Dir.chdir(template_dir) do
-    system("packer inspect -var-file=#{filename} ../../#{TEMPLATE_DIR}")
-  end
+  system("packer inspect -var-file=#{var_file} #{template_dir}")
 end
 
 ##@ Quick Builds (Debian)
 
 desc 'Build Debian 12 x86_64 base box'
 task :debian_12 do
-  ENV['TEMPLATE'] = 'debian/debian-12-x86_64.pkrvars.hcl'
+  ENV['TEMPLATE'] = 'debian/12-x86_64.pkrvars.hcl'
   Rake::Task[:build].invoke
 end
 
 desc 'Build Debian 12 aarch64 base box'
 task :debian_12_arm do
-  ENV['TEMPLATE'] = 'debian/debian-12-aarch64.pkrvars.hcl'
+  ENV['TEMPLATE'] = 'debian/12-aarch64.pkrvars.hcl'
   Rake::Task[:build].invoke
 end
 
 desc 'Build Debian 12 x86_64 Kubernetes node box'
 task :debian_12_k8s do
-  ENV['TEMPLATE'] = 'debian/debian-12-x86_64-k8s-node.pkrvars.hcl'
+  ENV['TEMPLATE'] = 'debian/12-x86_64.pkrvars.hcl'
+  ENV['VARIANT'] = 'k8s-node'
   Rake::Task[:build].invoke
 end
 
 desc 'Build Debian 12 aarch64 Kubernetes node box'
 task :debian_12_arm_k8s do
-  ENV['TEMPLATE'] = 'debian/debian-12-aarch64-k8s-node.pkrvars.hcl'
+  ENV['TEMPLATE'] = 'debian/12-aarch64.pkrvars.hcl'
+  ENV['VARIANT'] = 'k8s-node'
   Rake::Task[:build].invoke
 end
 
 desc 'Build Debian 12 x86_64 Docker host box'
 task :debian_12_docker do
-  ENV['TEMPLATE'] = 'debian/debian-12-x86_64-docker-host.pkrvars.hcl'
+  ENV['TEMPLATE'] = 'debian/12-x86_64.pkrvars.hcl'
+  ENV['VARIANT'] = 'docker-host'
   Rake::Task[:build].invoke
 end
 
 desc 'Build Debian 12 aarch64 Docker host box'
 task :debian_12_arm_docker do
-  ENV['TEMPLATE'] = 'debian/debian-12-aarch64-docker-host.pkrvars.hcl'
+  ENV['TEMPLATE'] = 'debian/12-aarch64.pkrvars.hcl'
+  ENV['VARIANT'] = 'docker-host'
   Rake::Task[:build].invoke
 end
 
 desc 'Build Debian 13 x86_64 base box'
 task :debian_13 do
-  ENV['TEMPLATE'] = 'debian/debian-13-x86_64.pkrvars.hcl'
+  ENV['TEMPLATE'] = 'debian/13-x86_64.pkrvars.hcl'
   Rake::Task[:build].invoke
 end
 
 desc 'Build Debian 13 aarch64 base box'
 task :debian_13_arm do
-  ENV['TEMPLATE'] = 'debian/debian-13-aarch64.pkrvars.hcl'
+  ENV['TEMPLATE'] = 'debian/13-aarch64.pkrvars.hcl'
   Rake::Task[:build].invoke
 end
 
@@ -281,10 +299,13 @@ end
 desc 'Show debug information'
 task :debug do
   puts "#{GREEN}Packer Configuration Debug Info#{RESET}"
-  puts "TEMPLATE_DIR: #{TEMPLATE_DIR}"
-  puts "PKRVARS_DIR:  #{PKRVARS_DIR}"
-  puts "BUILDS_DIR:   #{BUILDS_DIR}"
-  puts "PROVIDERS:    #{PROVIDERS}"
+  puts "TEMPLATE_DIR_BASE: #{TEMPLATE_DIR_BASE}"
+  puts "PROVIDER:          #{PROVIDER}"
+  puts "OS:                #{OS}"
+  puts "Template Dir:      #{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{OS}"
+  puts "PKRVARS_DIR:       #{PKRVARS_DIR}"
+  puts "BUILDS_DIR:        #{BUILDS_DIR}"
+  puts "K8S_VERSION:       #{K8S_VERSION}"
   puts ""
 
   puts "#{GREEN}Packer version:#{RESET}"
@@ -323,12 +344,17 @@ task :check_env do
   end
 
   # Check for directories
-  unless Dir.exist?(TEMPLATE_DIR)
-    errors << "#{TEMPLATE_DIR} directory not found"
+  unless Dir.exist?(TEMPLATE_DIR_BASE)
+    errors << "#{TEMPLATE_DIR_BASE} directory not found"
   end
 
   unless Dir.exist?(PKRVARS_DIR)
     errors << "#{PKRVARS_DIR} directory not found"
+  end
+
+  template_dir = "#{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{OS}"
+  unless Dir.exist?(template_dir)
+    errors << "#{template_dir} directory not found"
   end
 
   # Version checks (only if binaries are present)

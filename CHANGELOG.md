@@ -13,6 +13,7 @@ and this project adheres to Semantic Versioning where practical.
 - `os_pkrvars/AGENTS.md` for variable file guidance and examples.
 - `CHANGELOG.md` following Keep a Changelog.
 - Documentation standard in root `AGENTS.md` defining metadata header, SemVer for docs, per-doc changelog, and repo-level changelog requirements.
+- New doc: `doc/packer-organization-matrix-priority.md` outlining provider directories, OS-split sources, and arch/variant via variables.
 
 ### Changed
 - Documentation now states Guest Additions are to be installed during provisioning.

@@ -3,7 +3,10 @@
     "allow": [
       "Bash(mkdir:*)",
       "Bash(mv:*)",
-      "Bash(make validate-one:*)"
+      "Bash(make validate-one:*)",
+      "Bash(tree:*)",
+      "Bash(make init:*)",
+      "Bash(packer init:*)"
     ],
     "deny": [],
     "ask": []

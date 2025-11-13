@@ -1,6 +1,3 @@
-// Debian 12 x86_64 Docker Host Variant
-// Based on debian-12-x86_64.pkrvars.hcl with Docker-specific configurations
-
 os_name                 = "debian"
 os_version              = "12.12"
 os_arch                 = "x86_64"
