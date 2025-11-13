@@ -15,7 +15,7 @@ BUILDS_DIR = 'builds'
 
 # Default provider and OS
 PROVIDER = ENV['PROVIDER'] || 'virtualbox'
-OS = ENV['OS'] || 'debian'
+TARGET_OS = ENV['TARGET_OS'] || 'debian'
 
 # Default Kubernetes version for k8s-node variant
 K8S_VERSION = ENV['K8S_VERSION'] || '1.33'
@@ -63,9 +63,9 @@ task default: :help
 
 desc 'Validate all Packer templates for current provider/OS'
 task :validate do
-  puts "#{GREEN}Validating #{PROVIDER}/#{OS} templates...#{RESET}\n\n"
+  puts "#{GREEN}Validating #{PROVIDER}/#{TARGET_OS} templates...#{RESET}\n\n"
 
-  template_dir = "#{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{OS}"
+  template_dir = "#{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{TARGET_OS}"
   failed = []
 
   pkrvars_files.each do |var_file|
@@ -91,14 +91,14 @@ task :validate_one do
 
   unless template
     puts "#{RED}Error: TEMPLATE variable not set#{RESET}"
-    puts "Usage: rake validate_one TEMPLATE=debian/12-x86_64.pkrvars.hcl [PROVIDER=virtualbox] [OS=debian]"
+    puts "Usage: rake validate_one TEMPLATE=debian/12-x86_64.pkrvars.hcl [PROVIDER=virtualbox] [TARGET_OS=debian]"
     exit 1
   end
 
-  template_dir = "#{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{OS}"
+  template_dir = "#{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{TARGET_OS}"
   var_file = File.join(PKRVARS_DIR, template)
 
-  puts "#{GREEN}Validating #{PROVIDER}/#{OS} with #{var_file}#{RESET}\n\n"
+  puts "#{GREEN}Validating #{PROVIDER}/#{TARGET_OS} with #{var_file}#{RESET}\n\n"
 
   success = system("packer validate -var-file=#{var_file} #{template_dir}")
 
@@ -109,8 +109,8 @@ end
 
 desc 'Initialize Packer plugins for default provider/OS'
 task :init do
-  puts "#{GREEN}Initializing Packer plugins for #{PROVIDER}/#{OS}...#{RESET}"
-  template_dir = "#{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{OS}"
+  puts "#{GREEN}Initializing Packer plugins for #{PROVIDER}/#{TARGET_OS}...#{RESET}"
+  template_dir = "#{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{TARGET_OS}"
   Dir.chdir(template_dir) do
     system('packer init .')
   end
@@ -123,11 +123,11 @@ task build: :init do
 
   unless template
     puts "#{RED}Error: TEMPLATE variable not set#{RESET}"
-    puts "Usage: rake build TEMPLATE=debian/12-x86_64.pkrvars.hcl [PROVIDER=virtualbox] [OS=debian] [VARIANT=k8s-node]"
+    puts "Usage: rake build TEMPLATE=debian/12-x86_64.pkrvars.hcl [PROVIDER=virtualbox] [TARGET_OS=debian] [VARIANT=k8s-node]"
     exit 1
   end
 
-  template_dir = "#{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{OS}"
+  template_dir = "#{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{TARGET_OS}"
   var_file = File.join(PKRVARS_DIR, template)
 
   extra_vars = ""
@@ -138,7 +138,7 @@ task build: :init do
     end
   end
 
-  puts "#{GREEN}Building #{PROVIDER}/#{OS} from #{var_file}#{RESET}"
+  puts "#{GREEN}Building #{PROVIDER}/#{TARGET_OS} from #{var_file}#{RESET}"
   puts "#{YELLOW}Variant: #{variant}#{RESET}" if variant && !variant.empty?
 
   success = system("packer build -var-file=#{var_file} #{extra_vars} #{template_dir}")
@@ -148,9 +148,9 @@ end
 
 desc 'Build all boxes for current provider/OS'
 task build_all: :init do
-  puts "#{GREEN}Building all boxes for #{PROVIDER}/#{OS}...#{RESET}\n\n"
+  puts "#{GREEN}Building all boxes for #{PROVIDER}/#{TARGET_OS}...#{RESET}\n\n"
 
-  template_dir = "#{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{OS}"
+  template_dir = "#{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{TARGET_OS}"
   failed = []
 
   pkrvars_files.each do |var_file|
@@ -228,14 +228,14 @@ task :inspect do
 
   unless template
     puts "#{RED}Error: TEMPLATE variable not set#{RESET}"
-    puts "Usage: rake inspect TEMPLATE=debian/12-x86_64.pkrvars.hcl [PROVIDER=virtualbox] [OS=debian]"
+    puts "Usage: rake inspect TEMPLATE=debian/12-x86_64.pkrvars.hcl [PROVIDER=virtualbox] [TARGET_OS=debian]"
     exit 1
   end
 
-  template_dir = "#{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{OS}"
+  template_dir = "#{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{TARGET_OS}"
   var_file = File.join(PKRVARS_DIR, template)
 
-  puts "#{GREEN}Inspecting #{PROVIDER}/#{OS} with #{var_file}#{RESET}\n\n"
+  puts "#{GREEN}Inspecting #{PROVIDER}/#{TARGET_OS} with #{var_file}#{RESET}\n\n"
 
   system("packer inspect -var-file=#{var_file} #{template_dir}")
 end
@@ -301,8 +301,8 @@ task :debug do
   puts "#{GREEN}Packer Configuration Debug Info#{RESET}"
   puts "TEMPLATE_DIR_BASE: #{TEMPLATE_DIR_BASE}"
   puts "PROVIDER:          #{PROVIDER}"
-  puts "OS:                #{OS}"
-  puts "Template Dir:      #{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{OS}"
+  puts "TARGET_OS:         #{TARGET_OS}"
+  puts "Template Dir:      #{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{TARGET_OS}"
   puts "PKRVARS_DIR:       #{PKRVARS_DIR}"
   puts "BUILDS_DIR:        #{BUILDS_DIR}"
   puts "K8S_VERSION:       #{K8S_VERSION}"
@@ -352,7 +352,7 @@ task :check_env do
     errors << "#{PKRVARS_DIR} directory not found"
   end
 
-  template_dir = "#{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{OS}"
+  template_dir = "#{TEMPLATE_DIR_BASE}/#{PROVIDER}/#{TARGET_OS}"
   unless Dir.exist?(template_dir)
     errors << "#{template_dir} directory not found"
   end

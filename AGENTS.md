@@ -1,6 +1,6 @@
 ---
 title: AGENTS (Root Guidance)
-version: 2.0.0
+version: 2.0.1
 status: Active
 scope: repo-wide
 ---
@@ -50,12 +50,18 @@ make check-env          # Verify environment and dependencies
 make init               # Initialize Packer plugins (required before first build)
 make build TEMPLATE=debian/12-x86_64.pkrvars.hcl  # Build specific base box
 make build TEMPLATE=debian/12-x86_64.pkrvars.hcl VARIANT=k8s-node  # Build with variant
-make validate           # Validate all templates for current PROVIDER/OS
+make validate           # Validate all templates for current PROVIDER/TARGET_OS
 make validate-one TEMPLATE=debian/12-x86_64.pkrvars.hcl  # Validate single template
 make clean              # Remove build artifacts
 make list-templates     # Show available templates
 make list-builds        # Show built boxes
-make debug              # Show configuration (PROVIDER, OS, template dir, etc.)
+make debug              # Show configuration (PROVIDER, TARGET_OS, template dir, etc.)
+
+# Environment Variables
+PROVIDER=virtualbox     # Provider to use (default: virtualbox)
+TARGET_OS=debian        # Operating system to build (default: debian; NOTE: uses TARGET_OS not OS to avoid Windows conflict)
+VARIANT=k8s-node        # Variant to build (base, k8s-node, docker-host)
+K8S_VERSION=1.33        # Kubernetes version for k8s-node variant
 ```
 
 ### Manual Build (from command line)
@@ -223,7 +229,7 @@ Script rules in brief (see `packer_templates/scripts/AGENTS.md` for details):
 6. Create `packer_templates/scripts/ubuntu/` if distro-specific scripts needed
 7. Update source name in `sources.pkr.hcl`: `source "virtualbox-iso" "ubuntu"`
 8. Add make/rake targets: `ubuntu-22-04`, `ubuntu-24-04`, etc.
-9. Test: `make build TEMPLATE=ubuntu/22.04-x86_64.pkrvars.hcl PROVIDER=virtualbox OS=ubuntu`
+9. Test: `make build TEMPLATE=ubuntu/22.04-x86_64.pkrvars.hcl PROVIDER=virtualbox TARGET_OS=ubuntu`
 
 ### Adding a New Provider (e.g., VMware)
 1. Create `packer_templates/vmware/debian/` directory
@@ -233,7 +239,7 @@ Script rules in brief (see `packer_templates/scripts/AGENTS.md` for details):
 5. Create `vmware/debian/http/` and copy preseed files
 6. Create `packer_templates/scripts/providers/vmware/` for VMware Tools integration
 7. Update provisioning in `builds.pkr.hcl` Phase 2 to include VMware Tools
-8. Add make/rake targets or use: `make build TEMPLATE=debian/12-x86_64.pkrvars.hcl PROVIDER=vmware OS=debian`
+8. Add make/rake targets or use: `make build TEMPLATE=debian/12-x86_64.pkrvars.hcl PROVIDER=vmware TARGET_OS=debian`
 9. Repeat for each OS (ubuntu, almalinux) by creating `vmware/<os>/` directories
 
 ### Adding a New Variant
@@ -291,7 +297,7 @@ vagrant box add --name debian-12 builds/build_complete/debian-12.12-x86_64.virtu
 
 Always validate templates before building:
 ```bash
-make validate              # All templates for current PROVIDER/OS
+make validate              # All templates for current PROVIDER/TARGET_OS
 make validate-one TEMPLATE=debian/12-x86_64.pkrvars.hcl  # Single template
 
 # Or with Rake (Windows)
@@ -299,7 +305,7 @@ rake validate
 rake validate_one TEMPLATE=debian/12-x86_64.pkrvars.hcl
 
 # Change provider/OS
-make validate PROVIDER=vmware OS=ubuntu  # Future: validate VMware Ubuntu templates
+make validate PROVIDER=vmware TARGET_OS=ubuntu  # Future: validate VMware Ubuntu templates
 ```
 
 ## Debugging Builds
@@ -342,7 +348,7 @@ make validate PROVIDER=vmware OS=ubuntu  # Future: validate VMware Ubuntu templa
 - Or use convenience: `make debian-12` (base) or `make debian-12-k8s` (variant)
 - Test: add the built box with `vagrant box add --name debian-12 builds/build_complete/debian-12.12-x86_64.virtualbox.box` and run a minimal Vagrantfile.
 - Debug: set `headless = false` temporarily in the `.pkrvars.hcl` under test.
-- Quick check: `make debug` to see current PROVIDER/OS/template directory configuration
+- Quick check: `make debug` to see current PROVIDER/TARGET_OS/template directory configuration
 
 ## Security and Integrity
 
@@ -426,6 +432,7 @@ make validate PROVIDER=vmware OS=ubuntu  # Future: validate VMware Ubuntu templa
 
 | Version | Date       | Changes                                                                                  |
 |---------|------------|------------------------------------------------------------------------------------------|
+| 2.0.1   | 2025-11-13 | Fixed: Renamed OS→TARGET_OS in Makefile/Rakefile to avoid Windows `OS=Windows_NT` environment variable conflict; updated all documentation references. |
 | 2.0.0   | 2025-11-13 | **BREAKING**: Provider × OS matrix restructure; split templates (sources/builds); simplified variable files (12-x86_64.pkrvars.hcl); variant-via-flags approach; updated all build/validation commands. |
 | 1.3.0   | 2025-11-13 | Added variant system; directory structure; Phase 2d; K8s build targets; DoD updated.     |
 | 1.2.0   | 2025-11-13 | Added frontmatter; expanded documentation standard; parity note; fast dev loop added.   |

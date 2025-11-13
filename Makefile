@@ -16,8 +16,8 @@ PKRVARS_DIR       := os_pkrvars
 BUILDS_DIR        := builds
 
 # Default provider and OS
-PROVIDER ?= virtualbox
-OS       ?= debian
+PROVIDER  ?= virtualbox
+TARGET_OS ?= debian
 
 # Default Kubernetes version for k8s-node variant
 K8S_VERSION ?= 1.33
@@ -42,8 +42,8 @@ help: ## Display this help message
 
 .PHONY: validate
 validate: ## Validate all Packer templates for current provider/OS
-	@echo -e "$(GREEN)Validating $(PROVIDER)/$(OS) templates...$(RESET)\n"
-	@template_dir=$(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(OS); \
+	@echo -e "$(GREEN)Validating $(PROVIDER)/$(TARGET_OS) templates...$(RESET)\n"
+	@template_dir=$(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(TARGET_OS); \
 	for var_file in $(PKRVARS_FILES); do \
 		echo -e "\n$(GREEN)Validating with $$var_file$(RESET)\n"; \
 		packer validate -var-file=$$var_file $$template_dir || { \
@@ -57,29 +57,29 @@ validate: ## Validate all Packer templates for current provider/OS
 validate-one: ## Validate a single template (usage: make validate-one TEMPLATE=debian/12-x86_64.pkrvars.hcl)
 ifndef TEMPLATE
 	@echo -e "$(RED)Error: TEMPLATE variable not set$(RESET)"
-	@echo "Usage: make validate-one TEMPLATE=debian/12-x86_64.pkrvars.hcl [PROVIDER=virtualbox] [OS=debian]"
+	@echo "Usage: make validate-one TEMPLATE=debian/12-x86_64.pkrvars.hcl [PROVIDER=virtualbox] [TARGET_OS=debian]"
 	@exit 1
 endif
-	@template_dir=$(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(OS); \
+	@template_dir=$(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(TARGET_OS); \
 	var_file=$(PKRVARS_DIR)/$(TEMPLATE); \
-	echo -e "$(GREEN)Validating $(PROVIDER)/$(OS) with $$var_file$(RESET)\n"; \
+	echo -e "$(GREEN)Validating $(PROVIDER)/$(TARGET_OS) with $$var_file$(RESET)\n"; \
 	packer validate -var-file=$$var_file $$template_dir
 
 ##@ Building
 
 .PHONY: init
 init: ## Initialize Packer plugins for default provider/OS
-	@echo -e "$(GREEN)Initializing Packer plugins for $(PROVIDER)/$(OS)...$(RESET)"
-	@cd $(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(OS) && packer init .
+	@echo -e "$(GREEN)Initializing Packer plugins for $(PROVIDER)/$(TARGET_OS)...$(RESET)"
+	@cd $(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(TARGET_OS) && packer init .
 
 .PHONY: build
 build: init ## Build a specific box (usage: make build TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node])
 ifndef TEMPLATE
 	@echo -e "$(RED)Error: TEMPLATE variable not set$(RESET)"
-	@echo "Usage: make build TEMPLATE=debian/12-x86_64.pkrvars.hcl [PROVIDER=virtualbox] [OS=debian] [VARIANT=k8s-node]"
+	@echo "Usage: make build TEMPLATE=debian/12-x86_64.pkrvars.hcl [PROVIDER=virtualbox] [TARGET_OS=debian] [VARIANT=k8s-node]"
 	@exit 1
 endif
-	@template_dir=$(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(OS); \
+	@template_dir=$(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(TARGET_OS); \
 	var_file=$(PKRVARS_DIR)/$(TEMPLATE); \
 	extra_vars=""; \
 	if [ -n "$(VARIANT)" ]; then \
@@ -88,7 +88,7 @@ endif
 			extra_vars="$$extra_vars -var='kubernetes_version=$(K8S_VERSION)' -var='cpus=2' -var='memory=4096' -var='disk_size=61440'"; \
 		fi; \
 	fi; \
-	echo -e "$(GREEN)Building $(PROVIDER)/$(OS) from $$var_file$(RESET)"; \
+	echo -e "$(GREEN)Building $(PROVIDER)/$(TARGET_OS) from $$var_file$(RESET)"; \
 	if [ -n "$(VARIANT)" ]; then echo -e "$(YELLOW)Variant: $(VARIANT)$(RESET)"; fi; \
 	packer build \
 		-var-file=$$var_file \
@@ -209,8 +209,8 @@ debug: ## Show debug information
 	@echo -e "$(GREEN)Packer Configuration Debug Info$(RESET)"
 	@echo "TEMPLATE_DIR_BASE: $(TEMPLATE_DIR_BASE)"
 	@echo "PROVIDER:          $(PROVIDER)"
-	@echo "OS:                $(OS)"
-	@echo "Template Dir:      $(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(OS)"
+	@echo "TARGET_OS:         $(TARGET_OS)"
+	@echo "Template Dir:      $(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(TARGET_OS)"
 	@echo "PKRVARS_DIR:       $(PKRVARS_DIR)"
 	@echo "BUILDS_DIR:        $(BUILDS_DIR)"
 	@echo "K8S_VERSION:       $(K8S_VERSION)"
@@ -228,7 +228,7 @@ check-env: ## Check environment and dependencies
 	@command -v VBoxManage >/dev/null 2>&1 || { echo -e "$(RED)Error: VBoxManage not found (required for VirtualBox builds)$(RESET)"; exit 1; }
 	@[ -d "$(TEMPLATE_DIR_BASE)" ] || { echo -e "$(RED)Error: $(TEMPLATE_DIR_BASE) directory not found$(RESET)"; exit 1; }
 	@[ -d "$(PKRVARS_DIR)" ] || { echo -e "$(RED)Error: $(PKRVARS_DIR) directory not found$(RESET)"; exit 1; }
-	@[ -d "$(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(OS)" ] || { echo -e "$(RED)Error: $(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(OS) directory not found$(RESET)"; exit 1; }
+	@[ -d "$(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(TARGET_OS)" ] || { echo -e "$(RED)Error: $(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(TARGET_OS) directory not found$(RESET)"; exit 1; }
 	@# Version checks (fail early)
 	@pv=$$(packer version | sed -n 's/.*v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -n1); \
 		if [ -z "$$pv" ]; then echo -e "$(RED)Error: unable to parse Packer version$(RESET)"; exit 1; fi; \
