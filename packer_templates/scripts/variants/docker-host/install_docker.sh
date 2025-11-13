@@ -14,7 +14,7 @@ main() {
 
     # Install prerequisites
     lib::log "Installing Docker prerequisites..."
-    lib::apt_update_once
+    lib::ensure_apt_updated
     lib::ensure_packages \
         ca-certificates \
         curl \
@@ -47,9 +47,12 @@ main() {
 
     lib::ensure_apt_source_file "$repo_file" "$repo_line"
 
+    # Update apt cache after adding Docker repository
+    lib::log "Updating apt cache with Docker repository..."
+    lib::ensure_apt_updated
+
     # Install Docker packages
     lib::log "Installing Docker packages..."
-    lib::apt_update_once
     lib::ensure_packages \
         docker-ce \
         docker-ce-cli \

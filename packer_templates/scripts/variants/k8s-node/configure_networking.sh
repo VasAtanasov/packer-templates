@@ -44,7 +44,7 @@ main() {
 
     # Install network utilities that may be useful for debugging
     export DEBIAN_FRONTEND=noninteractive
-    lib::apt_update_once
+    lib::ensure_apt_updated
     lib::ensure_packages iproute2 net-tools
 
     lib::success "Networking configured for Kubernetes"

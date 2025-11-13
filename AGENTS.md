@@ -1,6 +1,6 @@
 ---
 title: AGENTS (Root Guidance)
-version: 2.0.1
+version: 2.0.2
 status: Active
 scope: repo-wide
 ---
@@ -198,7 +198,7 @@ The `packer_templates/scripts/_common/lib.sh` file is a comprehensive Bash libra
 
 - **Logging**: `lib::log`, `lib::success`, `lib::warn`, `lib::error`, `lib::debug`
 - **UI**: `lib::header`, `lib::subheader`, `lib::hr`, `lib::kv`, `lib::cmd`
-- **Packages**: `lib::ensure_package`, `lib::ensure_packages`, `lib::apt_update_once`
+- **Packages**: `lib::ensure_apt_updated`, `lib::ensure_package`, `lib::ensure_packages`
 - **Files**: `lib::ensure_directory`, `lib::ensure_file`, `lib::ensure_symlink`
 - **Services**: `lib::ensure_service`, `lib::ensure_service_enabled`, `lib::ensure_service_running`
 - **System**: `lib::ensure_swap_disabled`, `lib::ensure_kernel_module`, `lib::ensure_sysctl`
@@ -432,6 +432,7 @@ make validate PROVIDER=vmware TARGET_OS=ubuntu  # Future: validate VMware Ubuntu
 
 | Version | Date       | Changes                                                                                  |
 |---------|------------|------------------------------------------------------------------------------------------|
+| 2.0.2   | 2025-11-13 | Changed: Replaced references to lib::apt_update_once with lib::ensure_apt_updated.       |
 | 2.0.1   | 2025-11-13 | Fixed: Renamed OS→TARGET_OS in Makefile/Rakefile to avoid Windows `OS=Windows_NT` environment variable conflict; updated all documentation references. |
 | 2.0.0   | 2025-11-13 | **BREAKING**: Provider × OS matrix restructure; split templates (sources/builds); simplified variable files (12-x86_64.pkrvars.hcl); variant-via-flags approach; updated all build/validation commands. |
 | 1.3.0   | 2025-11-13 | Added variant system; directory structure; Phase 2d; K8s build targets; DoD updated.     |

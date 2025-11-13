@@ -34,7 +34,7 @@ main() {
 
     # Install Kubernetes components
     lib::log "Installing kubeadm, kubelet, kubectl..."
-    lib::apt_update_once
+    lib::ensure_apt_updated
     lib::ensure_packages kubeadm kubelet kubectl
 
     # Hold packages to prevent automatic updates

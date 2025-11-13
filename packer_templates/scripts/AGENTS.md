@@ -1,6 +1,6 @@
 ---
 title: AGENTS (Scripts Guidance)
-version: 1.5.0
+version: 1.5.1
 status: Active
 scope: packer_templates/scripts
 ---
@@ -40,7 +40,7 @@ precedence over the root `AGENTS.md` for script-related changes.
 - Always source the shared library provided by Packer: `source "${LIB_SH}"`.
 - Respect env flags if present: `VERBOSE=1`, `ASSUME_YES=1`, `LOG_NO_TS=1`.
 - Use helpers instead of ad‑hoc commands:
-    - Packages: `lib::apt_update_once`, `lib::ensure_package(s)`
+    - Packages: `lib::ensure_apt_updated`, `lib::ensure_package(s)`
     - Files: `lib::ensure_directory`, `lib::ensure_file`, `lib::ensure_symlink`
     - Services: `lib::ensure_service_enabled`, `lib::ensure_service_running`, `lib::ensure_service`
     - System: `lib::ensure_swap_disabled`, `lib::ensure_kernel_module`, `lib::ensure_sysctl`
@@ -55,7 +55,7 @@ precedence over the root `AGENTS.md` for script-related changes.
 
 ## APT and System Changes
 
-- Do not run `apt-get update` directly; call `lib::apt_update_once`.
+- Do not run `apt-get update` directly; call `lib::ensure_apt_updated`.
 - Prefer `lib::ensure_package(s)` over raw `apt-get install`.
 - Avoid dist-upgrade or kernel upgrades outside the dedicated update script.
 - Never reboot implicitly. If absolutely required, fail with a clear message and rationale.
@@ -259,7 +259,7 @@ lib::require_root
 main() {
   lib::header "Doing a thing"
   export DEBIAN_FRONTEND=noninteractive
-  lib::apt_update_once
+  lib::ensure_apt_updated
   lib::ensure_packages curl ca-certificates
   # ... your logic here ...
   lib::success "Completed"
@@ -321,6 +321,7 @@ The scripts directory follows a four-tier organization for scalability.
 
 | Version | Date       | Changes                                                                                 |
 |---------|------------|-----------------------------------------------------------------------------------------|
+| 1.5.1   | 2025-11-13 | Changed: Replaced references to lib::apt_update_once with lib::ensure_apt_updated.      |
 | 1.5.0   | 2025-11-13 | Added Variant Pattern section; updated directory layout to four-tier with variants/.    |
 | 1.4.0   | 2025-11-13 | Added Provider Integration Pattern; lib helpers for providers; deprecated build_tools.  |
 | 1.3.0   | 2025-11-13 | Restructured directory layout: added providers/ tier; renamed debian scripts.           |

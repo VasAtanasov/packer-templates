@@ -178,30 +178,40 @@ fi
 # --- APT helpers ---
 if ! declare -F lib::ensure_apt_updated >/dev/null 2>&1; then
 lib::ensure_apt_updated() {
-    local stamp="/var/lib/apt/periodic/update-success-stamp"
-    local max_age=3600
-    if [ -f "$stamp" ]; then
-        local age=$(( $(date +%s) - $(stat -c %Y "$stamp") ))
-        if [ $age -lt $max_age ]; then
-            lib::log "apt cache is fresh (${age}s old)"
-            return 0
-        fi
+    # Avoid repeated updates within a short period and force after repo changes.
+    local ttl="${APT_UPDATE_TTL:-300}" # seconds
+    local now lists_dir need_update
+    now=$(date +%s)
+    lists_dir="/var/lib/apt/lists"
+    need_update=0
+
+    # Force update if repo list changed in this process
+    if [ "${APT_CACHE_INVALIDATED:-0}" = "1" ]; then
+        need_update=1
     fi
+
+    # Force if apt lists directory appears empty (fresh image or cleanup)
+    if [ "$(find "$lists_dir" -type f 2>/dev/null | wc -l | tr -d ' ')" = "0" ]; then
+        need_update=1
+    fi
+
+    # Process-level throttle using APT_UPDATED_TS
+    if [ ${need_update} -eq 0 ] && [ -n "${APT_UPDATED_TS:-}" ] && [ $((now - APT_UPDATED_TS)) -lt "$ttl" ]; then
+        lib::debug "apt cache considered fresh (ttl=${ttl}s)"
+        return 0
+    fi
+
     lib::log "Updating apt cache..."
     if apt-get update -qq; then
+        APT_UPDATED_TS=$now; export APT_UPDATED_TS
+        APT_CACHE_INVALIDATED=0; export APT_CACHE_INVALIDATED
         lib::log "apt cache updated"
+        return 0
     else
-        lib::warn "apt update encountered warnings"
-    fi
-}
-fi
-
-if ! declare -F lib::apt_update_once >/dev/null 2>&1; then
-APT_UPDATED=0
-lib::apt_update_once() {
-    if [ ${APT_UPDATED:-0} -eq 0 ]; then
-        lib::ensure_apt_updated || true
-        APT_UPDATED=1
+        # Even if update returns non-zero, many transient issues still leave cache usable.
+        APT_UPDATED_TS=$now; export APT_UPDATED_TS
+        lib::warn "apt update encountered warnings/errors"
+        return 0
     fi
 }
 fi
@@ -219,6 +229,8 @@ lib::ensure_apt_key_from_url() {
     if curl -fsSL "$url" | gpg --dearmor -o "$dest"; then
         chmod a+r "$dest" || true
         lib::log "APT key installed: $dest"
+        # Installing a new key may be followed by new sources; force cache refresh next time
+        APT_CACHE_INVALIDATED=1; export APT_CACHE_INVALIDATED
     else
         lib::error "Failed to install APT key: $url"
         return 1
@@ -237,6 +249,8 @@ lib::ensure_apt_source_file() {
     fi
     lib::log "Writing APT source: $file"
     printf '%s\n' "$line" > "$file"
+    # Mark cache as invalidated so next ensure_apt_updated will refresh
+    APT_CACHE_INVALIDATED=1; export APT_CACHE_INVALIDATED
     return 0
 }
 fi
@@ -249,7 +263,7 @@ lib::ensure_package() {
         lib::log "$package already installed"
         return 0
     fi
-    lib::apt_update_once
+    lib::ensure_apt_updated
     lib::log "Installing $package..."
     if apt-get install -y "$package" >/dev/null 2>&1; then
         lib::log "$package installed"
@@ -262,12 +276,24 @@ fi
 
 if ! declare -F lib::ensure_packages >/dev/null 2>&1; then
 lib::ensure_packages() {
-    local failed=0 p
+    local to_install=() p
     for p in "$@"; do
-        lib::ensure_package "$p" || ((failed++))
+        if lib::pkg_installed "$p"; then
+            lib::log "$p already installed"
+        else
+            to_install+=("$p")
+        fi
     done
-    if [ $failed -gt 0 ]; then
-        lib::error "$failed package(s) failed to install"
+    if [ ${#to_install[@]} -eq 0 ]; then
+        return 0
+    fi
+    lib::ensure_apt_updated
+    lib::log "Installing packages: ${to_install[*]}..."
+    if apt-get install -y "${to_install[@]}" >/dev/null 2>&1; then
+        lib::log "Packages installed"
+        return 0
+    else
+        lib::error "Failed to install packages: ${to_install[*]}"
         return 1
     fi
 }
@@ -280,7 +306,7 @@ if ! declare -F lib::install_kernel_build_deps >/dev/null 2>&1; then
 lib::install_kernel_build_deps() {
     lib::log "Installing kernel build dependencies..."
     export DEBIAN_FRONTEND=noninteractive
-    lib::apt_update_once
+    lib::ensure_apt_updated
 
     local arch
     arch="$(dpkg --print-architecture 2>/dev/null || uname -m)"

@@ -15,7 +15,7 @@ install_containerd() {
     lib::log "Installing containerd..."
 
     export DEBIAN_FRONTEND=noninteractive
-    lib::apt_update_once
+    lib::ensure_apt_updated
 
     # Install containerd
     lib::ensure_packages containerd
@@ -52,7 +52,7 @@ install_crio() {
     lib::log "Installing CRI-O..."
 
     export DEBIAN_FRONTEND=noninteractive
-    lib::apt_update_once
+    lib::ensure_apt_updated
 
     local os_version
     os_version="Debian_$(lsb_release -rs | cut -d. -f1)"
@@ -74,7 +74,7 @@ install_crio() {
         "deb [signed-by=${keyring}] ${repo_url}/ /"
 
     # Install CRI-O
-    lib::apt_update_once
+    lib::ensure_apt_updated
     lib::ensure_packages cri-o cri-o-runc
 
     # Enable and start CRI-O
