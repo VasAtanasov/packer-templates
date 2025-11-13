@@ -1,10 +1,22 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for any coding agent working in this repository. `CLAUDE.md` is a symlink to this file. This root document applies repository‑wide unless overridden by a more deeply nested `AGENTS.md`.
+
+## Scope and Precedence
+- This file governs the entire repo unless a subdirectory contains its own `AGENTS.md`.
+- Deeper `AGENTS.md` files take precedence for their subtree.
+- Current scoped guides:
+  - `packer_templates/scripts/AGENTS.md` – provisioning scripts rules and skeletons.
+  - `os_pkrvars/AGENTS.md` – authoring `.pkrvars.hcl` files.
+
+## Minimum Tool Versions
+- Packer: >= 1.7.0 (enforced via `packer_templates/pkr-plugins.pkr.hcl`).
+- VirtualBox: >= 7.1.6 (for reliable aarch64 support).
+- `make check-env` should be used before builds and fails early if requirements are unmet.
 
 ## Project Overview
 
-This is a Packer repository for building Debian-based Vagrant boxes for VirtualBox. The project is streamlined and focused on Debian 12/13 with a clear 3-phase provisioning approach. It's designed to work reliably on Windows/WSL2 environments.
+This is a Packer repository for building Debian-based Vagrant boxes for VirtualBox. The project is streamlined and focused on Debian 12/13 with a clear 3-phase provisioning approach. The project is host‑agnostic; no WSL2‑specific accommodations are required.
 
 ## Build Commands
 
@@ -71,6 +83,11 @@ The project uses a **single unified template** (`main.pkr.hcl`) that combines va
 - `boot_command` - Installer boot command sequence
 - `vboxmanage` - Custom VBoxManage commands (auto-configured per architecture)
 
+HCL style conventions:
+- Use snake_case for variable names and filenames.
+- Required in `.pkrvars.hcl`: `os_name`, `os_version`, `os_arch`, `iso_url`, `iso_checksum`, `vbox_guest_os_type`, `boot_command`.
+- Always provide checksums using Debian’s published SHA256 lists via `file:` URLs (example in `os_pkrvars/debian`).
+
 **Architecture-specific defaults:**
 - x86_64: ich9 chipset, SATA storage
 - aarch64: armv8virtual chipset, virtio storage, EFI firmware, USB peripherals
@@ -86,6 +103,7 @@ The project uses a **single unified template** (`main.pkr.hcl`) that combines va
 - Configure SSH (`_common/sshd.sh`)
 - Set up Vagrant user (`_common/vagrant.sh`)
 - Configure systemd, sudoers, networking (debian-specific scripts)
+ - Install VirtualBox Guest Additions (policy: always install). See `scripts/_common/guest_tools_virtualbox.sh` and ensure `vbox_guest_additions_mode` is set appropriately.
 
 **Phase 3: Cleanup & Minimization**
 - Remove unnecessary packages (`debian/cleanup_debian.sh`)
@@ -96,11 +114,13 @@ The project uses a **single unified template** (`main.pkr.hcl`) that combines va
 1. Upload entire `scripts/` tree to `/tmp/packer-scripts`
 2. Install `_common/lib.sh` to `/usr/local/lib/k8s/lib.sh` (stable, root-owned)
 3. Run Phase 1 (may trigger reboot, which clears `/tmp`)
-4. Re-upload `scripts/` tree to `/tmp/packer-scripts` (handles reboot case)
-5. Run Phases 2 & 3 with `LIB_DIR=/usr/local/lib/k8s` and `LIB_SH=/usr/local/lib/k8s/lib.sh` environment variables
-6. Final cleanup removes `/usr/local/lib/k8s/lib.sh` from box
+4. Re-upload `scripts/` tree to `/tmp/packer-scripts` (after potential reboot)
+5. Run Phase 2 with `LIB_DIR=/usr/local/lib/k8s` and `LIB_SH=/usr/local/lib/k8s/lib.sh` environment variables
+6. Re-upload `scripts/` tree to `/tmp/packer-scripts` (cleanup_debian.sh removes `/tmp` contents)
+7. Run Phase 3 with the same environment variables
+8. Final cleanup removes `/usr/local/lib/k8s/lib.sh` from box
 
-**Critical**: Scripts are re-uploaded after Phase 1 because system updates may trigger a reboot that clears `/tmp`. The `lib.sh` library persists in `/usr/local/lib/k8s/` across reboots.
+**Critical**: Scripts are re-uploaded after Phase 1 (reboot clears `/tmp`) and before Phase 3 (`cleanup_debian.sh` removes `/tmp` contents). The `lib.sh` library persists in `/usr/local/lib/k8s/` across all phases.
 
 ### lib.sh Library
 
@@ -115,6 +135,12 @@ The `packer_templates/scripts/_common/lib.sh` file is a comprehensive Bash libra
 - **Verification**: `lib::verify_commands`, `lib::verify_files`, `lib::verify_services`
 
 All provisioner scripts should source this library via: `source "${LIB_SH}"`
+
+Script rules in brief (see `packer_templates/scripts/AGENTS.md` for details):
+- Bash only; strict mode and error traps via `lib::strict` and `lib::setup_traps`.
+- Must run as root (`lib::require_root`).
+- Idempotent and re‑runnable.
+- Use helpers for APT, files, services; avoid direct `apt-get update` or raw `systemctl` where helpers exist.
 
 ## Adding New Content
 
@@ -138,18 +164,17 @@ All provisioner scripts should source this library via: `source "${LIB_SH}"`
 - Use helper functions: `lib::ensure_package`, `lib::ensure_service`, etc.
 - Test on both x86_64 and aarch64 when possible
 
-## Windows/WSL2 Considerations
+## Host Environment
 
-- **Avoid `--nat-localhostreachable1`** in custom vboxmanage commands on WSL2 (causes network issues)
-- VirtualBox 7.1.6+ supports aarch64 VMs
-- Headless mode is enabled by default; remove `headless = true` in `.pkrvars.hcl` to debug boot issues
+- The project is host‑agnostic. No WSL2‑specific workarounds are required.
+- Headless mode is enabled by default; set `headless = false` in `.pkrvars.hcl` to debug boot issues.
 
 ## Guest Additions
 
-Guest Additions are disabled by default (`vbox_guest_additions_mode = "upload"`) for reliability on WSL2. To enable:
-1. Set `vbox_guest_additions_mode = "attach"` or `"upload"` in `.pkrvars.hcl`
-2. Add installation step in provisioner (see `scripts/_common/guest_tools_virtualbox.sh`)
-3. Override ISO path via `vbox_guest_additions_path` if needed
+Policy: Always install VirtualBox Guest Additions.
+1. Ensure `vbox_guest_additions_mode = "attach"` (or `"upload"`) in `.pkrvars.hcl`.
+2. Include `scripts/_common/guest_tools_virtualbox.sh` in provisioning (Phase 2).
+3. Optionally override ISO path via `vbox_guest_additions_path`.
 
 ## Output Location
 
@@ -175,3 +200,50 @@ make validate-one TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl  # Single templat
 3. Remove `headless = true` from `.pkrvars.hcl` to view VirtualBox GUI
 4. Check `packer build` output for detailed logs
 5. SSH into VM during build: `ssh vagrant@<ip>` (password: vagrant)
+
+## Reproducibility
+
+- ISO caching: when `iso_target_path = "build_dir_iso"` and `iso_url` is set, the ISO is stored as `builds/iso/<os>-<version>-<arch>-<sha8>.iso`, where `sha8` is `sha256(iso_url)[0:8]`.
+- Determinism: pin ISOs by version, use `file:` SHA256 lists for checksums, and avoid implicit upgrades outside Phase 1.
+
+## HCL Conventions
+
+- Variable and filename style: snake_case.
+- Required fields in `.pkrvars.hcl`: `os_name`, `os_version`, `os_arch`, `iso_url`, `iso_checksum`, `vbox_guest_os_type`, `boot_command`.
+- Example override of `vboxmanage` in `.pkrvars.hcl`:
+  - `vboxmanage = [["modifyvm", "{{.Name}}", "--cableconnected1", "on"], ["modifyvm", "{{.Name}}", "--audio-enabled", "off"]]`
+
+## Definition of Done (DoD)
+
+- New template `.pkrvars.hcl` validates (`make validate-one`).
+- Full build succeeds on both arches (where applicable).
+- Box name matches `<os_name>-<os_version>-<os_arch>.virtualbox.box`.
+- `vagrant up` works; SSH with `vagrant/vagrant` succeeds.
+- Guest Additions installed and functional.
+- Size is reasonable for the distro/version; cleanup phase applied.
+
+## Fast Dev Loop
+
+- Validate: `make validate-one TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl`
+- Build: `make build TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl`
+- Test: add the built box with `vagrant box add --name debian-12 builds/build_complete/debian-12.12-x86_64.virtualbox.box` and run a minimal Vagrantfile.
+- Debug: set `headless = false` temporarily in the `.pkrvars.hcl` under test.
+
+## Security and Integrity
+
+- Checksums are mandatory for ISOs. Prefer Debian’s published `SHA256SUMS` via `file:` URLs.
+- Do not store secrets in the repo. Use environment variables and Packer sensitive variables for any future secret inputs.
+- Avoid unattended upgrades outside Phase 1 and avoid implicit reboots.
+
+## Build Files Parity
+
+- When updating any of the Rakefile or Makefile the both files must be identical in functionality. I use Makefile under Linux because it executes command with linux commands and rake file is for windows
+
+## Changelog Updates
+
+- Maintain `CHANGELOG.md` following Keep a Changelog.
+- For any user-visible change (templates, scripts, Makefile, Rakefile, `os_pkrvars`, docs), update the Unreleased section.
+- Use categories: Added, Changed, Fixed, Deprecated, Removed, Security.
+- Note Makefile/Rakefile edits under Changed and confirm parity in the entry.
+- Keep entries concise; reference files/targets when helpful (e.g., `Makefile: check-env`).
+- When cutting a release, rename Unreleased to the version with date and start a fresh Unreleased section.
