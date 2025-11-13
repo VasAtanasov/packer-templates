@@ -273,6 +273,47 @@ lib::ensure_packages() {
 }
 fi
 
+# --- Provider Support ---
+# Helpers for provider integration (guest additions, kernel modules, etc.)
+
+if ! declare -F lib::install_kernel_build_deps >/dev/null 2>&1; then
+lib::install_kernel_build_deps() {
+    lib::log "Installing kernel build dependencies..."
+    export DEBIAN_FRONTEND=noninteractive
+    lib::apt_update_once
+
+    local arch
+    arch="$(dpkg --print-architecture 2>/dev/null || uname -m)"
+
+    # Install kernel headers for current running kernel
+    local kernel_headers="linux-headers-$(uname -r)"
+
+    lib::ensure_packages build-essential dkms bzip2 tar "$kernel_headers"
+    lib::success "Kernel build dependencies installed"
+}
+fi
+
+if ! declare -F lib::check_reboot_required >/dev/null 2>&1; then
+lib::check_reboot_required() {
+    # Check for the /var/run/reboot-required file (Debian/Ubuntu)
+    if [ -f /var/run/reboot-required ]; then
+        lib::log "Reboot required (found /var/run/reboot-required)"
+        return 0
+    fi
+
+    # Check for needs-restarting command (RHEL-based systems)
+    if command -v needs-restarting >/dev/null 2>&1; then
+        if needs-restarting -r >/dev/null 2>&1 || needs-restarting -s >/dev/null 2>&1; then
+            lib::log "Reboot required (needs-restarting)"
+            return 0
+        fi
+    fi
+
+    lib::log "No reboot required"
+    return 1
+}
+fi
+
 if ! declare -F lib::ensure_command >/dev/null 2>&1; then
 lib::ensure_command() {
     local cmd=$1 install_func=${2:-}

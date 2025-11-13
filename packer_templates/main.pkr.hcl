@@ -48,7 +48,7 @@ variable "vbox_guest_additions_path" {
 }
 variable "vbox_guest_additions_mode" {
   type    = string
-  default = "upload" // keep disabled by default for reliability on WSL2
+  default = "upload"
 }
 variable "headless" {
   type    = bool
@@ -178,7 +178,34 @@ build {
     expect_disconnect = true // script may reboot
   }
 
-  // Phase 2: Base config for Vagrant + Debian bits
+  // Phase 2a: Provider dependencies (kernel headers, build tools for VirtualBox)
+  provisioner "shell" {
+    inline = [
+      "bash /usr/local/lib/k8s/scripts/providers/virtualbox/install_dependencies.sh",
+    ]
+    environment_vars = [
+      "LIB_DIR=/usr/local/lib/k8s",
+      "LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh",
+    ]
+    execute_command   = "sudo -S bash -c '{{ .Vars }} {{ .Path }}'"
+    expect_disconnect = true // may reboot if kernel packages installed
+  }
+
+  // Phase 2b: Provider integration (Guest Additions)
+  provisioner "shell" {
+    inline = [
+      "bash /usr/local/lib/k8s/scripts/providers/virtualbox/guest_additions.sh",
+    ]
+    environment_vars = [
+      "LIB_DIR=/usr/local/lib/k8s",
+      "LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh",
+      "HOME_DIR=/home/vagrant",
+    ]
+    execute_command   = "sudo -S bash -c '{{ .Vars }} {{ .Path }}'"
+    expect_disconnect = true // may reboot after installation
+  }
+
+  // Phase 2c: Base config for Vagrant + Debian bits
   provisioner "shell" {
     inline = [
       "bash /usr/local/lib/k8s/scripts/_common/sshd.sh",

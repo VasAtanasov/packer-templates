@@ -1,6 +1,6 @@
 ---
 title: AGENTS (Scripts Guidance)
-version: 1.3.0
+version: 1.4.0
 status: Active
 scope: packer_templates/scripts
 ---
@@ -77,6 +77,73 @@ precedence over the root `AGENTS.md` for script-related changes.
 - Detect architecture using `dpkg --print-architecture` or `${PACKER_ARCH}` if provided.
 - For VirtualBox specifics, leave chipset/storage configuration to Packer variables/templates.
 
+## Provider Integration Pattern
+
+Provider-specific scripts live in `providers/{name}/` and follow a two-script pattern:
+
+### 1. install_dependencies.sh
+Installs build tools, kernel headers, or other prerequisites needed by the provider.
+
+**Example (VirtualBox):**
+```bash
+#!/usr/bin/env bash
+set -o pipefail
+source "${LIB_SH}"
+lib::strict
+lib::setup_traps
+lib::require_root
+
+main() {
+    lib::header "Installing VirtualBox build dependencies"
+    lib::install_kernel_build_deps  # Shared helper from lib.sh
+
+    if lib::check_reboot_required; then
+        lib::warn "Reboot required after kernel packages"
+        shutdown -r now
+        sleep 60
+    fi
+}
+main "$@"
+```
+
+### 2. Integration script (guest_additions.sh, integration_services.sh, tools.sh)
+Installs the provider-specific integration (guest additions, integration services, tools).
+
+**Key points:**
+- Assume dependencies are already installed
+- Use lib helpers for all operations
+- Verify installation (e.g., check for kernel modules)
+- Clean up temporary files and logs
+- Check for reboot requirements via `lib::check_reboot_required()`
+
+### Shared Helpers in lib.sh
+
+Two helpers support provider integration:
+
+- `lib::install_kernel_build_deps()` - Installs build-essential, dkms, kernel headers
+- `lib::check_reboot_required()` - Detects if reboot is needed after package changes
+
+### Adding a New Provider
+
+To add support for a new provider (e.g., VMware, Parallels):
+
+1. Create `providers/{name}/` directory
+2. Write `install_dependencies.sh` (use lib helpers where possible)
+3. Write integration script (e.g., `tools.sh`)
+4. Add provider phases to Packer template:
+   ```hcl
+   provisioner "shell" {
+     only = ["source.vmware-iso.vm"]  // optional: provider-specific
+     inline = [
+       "bash /usr/local/lib/k8s/scripts/providers/vmware/install_dependencies.sh",
+       "bash /usr/local/lib/k8s/scripts/providers/vmware/tools.sh",
+     ]
+     environment_vars = ["LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh", ...]
+     execute_command = "sudo -S bash -c '{{ .Vars }} {{ .Path }}'"
+     expect_disconnect = true
+   }
+   ```
+
 ## Script Skeleton
 
 ```bash
@@ -131,33 +198,7 @@ Examples
 
 ## Naming and Layout
 
-The scripts directory follows a three-tier organization for scalability:
-
-```
-scripts/
-  _common/              # Cross-cutting utilities (OS-agnostic, provider-agnostic)
-    lib.sh              # Core library with 60+ helper functions
-    update_packages.sh  # System updates
-    sshd.sh             # SSH hardening
-    vagrant.sh          # Vagrant user setup
-    build_tools.sh      # Generic build tools
-    minimize.sh         # Cleanup and disk zeroing
-
-  providers/            # Provider integration layer (guest tools, drivers)
-    virtualbox/
-      guest_additions.sh # VirtualBox Guest Additions installer
-    hyperv/
-      integration_services.sh # Hyper-V integration services
-
-  debian/               # OS-specific configuration
-    systemd.sh          # Systemd configuration
-    sudoers.sh          # Sudoers configuration
-    networking.sh       # Network configuration
-    cleanup.sh          # OS-specific cleanup
-
-  ubuntu/               # Future: Ubuntu-specific scripts
-  rocky/                # Future: Rocky Linux-specific scripts
-```
+The scripts directory follows a three-tier organization for scalability.
 
 **Organization rules:**
 - `_common/` = Provider-agnostic + OS-family-agnostic scripts that work everywhere
@@ -180,6 +221,7 @@ scripts/
 
 | Version | Date       | Changes                                                                                 |
 |---------|------------|-----------------------------------------------------------------------------------------|
+| 1.4.0   | 2025-11-13 | Added Provider Integration Pattern; lib helpers for providers; deprecated build_tools.  |
 | 1.3.0   | 2025-11-13 | Restructured directory layout: added providers/ tier; renamed debian scripts.           |
 | 1.2.0   | 2025-11-13 | Merged general Bash guidance; focused on this project; removed K8s/Azure specifics.     |
 | 1.1.0   | 2025-11-13 | Align header to root standard; clarify apt non-interactive; verifiers.                  |
