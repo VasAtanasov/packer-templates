@@ -8,24 +8,41 @@ and this project adheres to Semantic Versioning where practical.
 ## [Unreleased]
 
 ### Added
-- Root `AGENTS.md` refined: scope/precedence, minimum versions, HCL conventions, reproducibility, DoD, fast dev loop, security, and cross‑refs.
-- `packer_templates/scripts/AGENTS.md` with script rules (strict mode, idempotent, root required) and skeleton (no local fallback).
+
+- Root `AGENTS.md` refined: scope/precedence, minimum versions, HCL conventions, reproducibility, DoD, fast dev loop,
+  security, and cross‑refs.
+- `packer_templates/scripts/AGENTS.md` with script rules (strict mode, idempotent, root required) and skeleton (no local
+  fallback).
 - `os_pkrvars/AGENTS.md` for variable file guidance and examples.
 - `CHANGELOG.md` following Keep a Changelog.
-- Documentation standard in root `AGENTS.md` defining metadata header, SemVer for docs, per-doc changelog, and repo-level changelog requirements.
-- New doc: `doc/packer-organization-matrix-priority.md` outlining provider directories, OS-split sources, and arch/variant via variables.
- - Tests: `test/scripts/tests/lib_apt.bats` to validate APT helpers (TTL + invalidation, bulk installs).
+- Documentation standard in root `AGENTS.md` defining metadata header, SemVer for docs, per-doc changelog, and
+  repo-level changelog requirements.
+- New doc: `doc/packer-organization-matrix-priority.md` outlining provider directories, OS-split sources, and
+  arch/variant via variables.
+- Tests: `test/scripts/tests/lib_apt.bats` to validate APT helpers (TTL + invalidation, bulk installs).
 
 ### Changed
+
+- Refactored monolithic `_common/lib.sh` into modular libraries: `_common/lib-core.sh` (OS-agnostic),
+  `_common/lib-debian.sh` (Debian/Ubuntu APT), `_common/lib-rhel.sh` (AlmaLinux/Rocky DNF). All scripts now source
+  `LIB_CORE_SH` + `LIB_OS_SH`.
+- Packer templates updated to pass `LIB_CORE_SH` and `LIB_OS_SH` environment variables to all provisioners.
+- Documentation updated (root AGENTS.md, scripts AGENTS.md, README) to reflect modular library structure and new env
+  vars.
 - Documentation now states Guest Additions are to be installed during provisioning.
 - Host stance clarified as agnostic (no WSL2‑specific accommodations required).
 - Rakefile updated to match Makefile environment checks and minimum version enforcement.
- - Aligned documentation to the repo Documentation Standard (frontmatter + Doc Changelog across docs).
- - Merged general Bash guidance into `packer_templates/scripts/AGENTS.md` and tailored to project.
- - Docs: replaced references to `lib::apt_update_once` with `lib::ensure_apt_updated` in `AGENTS.md` and `packer_templates/scripts/AGENTS.md`.
- - lib.sh: `lib::ensure_apt_updated` now uses TTL + repo invalidation to avoid repeated updates while guaranteeing freshness after adding sources.
- - lib.sh: `lib::ensure_packages` performs a single bulk install after one apt cache refresh, improving performance for multiple packages.
- - lib.sh: `lib::ensure_apt_key_from_url` now marks the cache invalidated after installing a key, ensuring the next apt update refreshes signatures.
+- Aligned documentation to the repo Documentation Standard (frontmatter + Doc Changelog across docs).
+- Merged general Bash guidance into `packer_templates/scripts/AGENTS.md` and tailored to project.
+- Docs: replaced references to `lib::apt_update_once` with `lib::ensure_apt_updated` in `AGENTS.md` and
+  `packer_templates/scripts/AGENTS.md`.
+- lib.sh: `lib::ensure_apt_updated` now uses TTL + repo invalidation to avoid repeated updates while guaranteeing
+  freshness after adding sources.
+- lib.sh: `lib::ensure_packages` performs a single bulk install after one apt cache refresh, improving performance for
+  multiple packages.
+- lib.sh: `lib::ensure_apt_key_from_url` now marks the cache invalidated after installing a key, ensuring the next apt
+  update refreshes signatures.
 
 ### Removed
+
 - Deleted `doc/CONTRIBUTING_BASH.md` in favor of consolidated guidance in `packer_templates/scripts/AGENTS.md`.

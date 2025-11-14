@@ -1,6 +1,6 @@
 ---
 title: AGENTS (Scripts Guidance)
-version: 1.5.1
+version: 1.6.0
 status: Active
 scope: packer_templates/scripts
 ---
@@ -14,7 +14,7 @@ precedence over the root `AGENTS.md` for script-related changes.
 ## Goals
 
 - Keep provisioning scripts deterministic, idempotent, and fast.
-- Centralize common behavior via `_common/lib.sh`.
+- Centralize common behavior via modular libraries (`_common/lib-core.sh` + OS library).
 - Support both x86_64 and aarch64 builds without duplication.
 
 ## Baseline Requirements
@@ -37,7 +37,9 @@ precedence over the root `AGENTS.md` for script-related changes.
 
 ## Library Usage
 
-- Always source the shared library provided by Packer: `source "${LIB_SH}"`.
+- Always source the shared libraries provided by Packer:
+    - `source "${LIB_CORE_SH}"`   # OS-agnostic helpers
+    - `source "${LIB_OS_SH}"`     # OS-specific helpers (Debian/RHEL)
 - Respect env flags if present: `VERBOSE=1`, `ASSUME_YES=1`, `LOG_NO_TS=1`.
 - Use helpers instead of ad‑hoc commands:
     - Packages: `lib::ensure_apt_updated`, `lib::ensure_package(s)`
@@ -82,13 +84,16 @@ precedence over the root `AGENTS.md` for script-related changes.
 Provider-specific scripts live in `providers/{name}/` and follow a two-script pattern:
 
 ### 1. install_dependencies.sh
+
 Installs build tools, kernel headers, or other prerequisites needed by the provider.
 
 **Example (VirtualBox):**
+
 ```bash
 #!/usr/bin/env bash
 set -o pipefail
-source "${LIB_SH}"
+source "${LIB_CORE_SH}"
+source "${LIB_OS_SH}"
 lib::strict
 lib::setup_traps
 lib::require_root
@@ -107,9 +112,11 @@ main "$@"
 ```
 
 ### 2. Integration script (guest_additions.sh, integration_services.sh, tools.sh)
+
 Installs the provider-specific integration (guest additions, integration services, tools).
 
 **Key points:**
+
 - Assume dependencies are already installed
 - Use lib helpers for all operations
 - Verify installation (e.g., check for kernel modules)
@@ -138,7 +145,12 @@ To add support for a new provider (e.g., VMware, Parallels):
        "bash /usr/local/lib/k8s/scripts/providers/vmware/install_dependencies.sh",
        "bash /usr/local/lib/k8s/scripts/providers/vmware/tools.sh",
      ]
-     environment_vars = ["LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh", ...]
+     environment_vars = [
+       "LIB_DIR=/usr/local/lib/k8s",
+       "LIB_CORE_SH=/usr/local/lib/k8s/scripts/_common/lib-core.sh",
+       "LIB_OS_SH=/usr/local/lib/k8s/scripts/_common/lib-debian.sh", // or lib-rhel.sh
+       ...
+     ]
      execute_command = "sudo -S bash -c '{{ .Vars }} {{ .Path }}'"
      expect_disconnect = true
    }
@@ -146,18 +158,22 @@ To add support for a new provider (e.g., VMware, Parallels):
 
 ## Variant Pattern
 
-Variant-specific scripts live in `variants/{name}/` and provide specialized configurations on top of the base box. Variants are activated via the `variant` variable in `.pkrvars.hcl` files.
+Variant-specific scripts live in `variants/{name}/` and provide specialized configurations on top of the base box.
+Variants are activated via the `variant` variable in `.pkrvars.hcl` files.
 
 **Available variants:**
+
 - `base` - Minimal base box (no variant scripts run)
 - `k8s-node` - Kubernetes node with kubeadm, kubelet, kubectl, and container runtime
 - `docker-host` - Docker host with Docker Engine and docker-compose
 
 ### Variant Script Organization
 
-Variant scripts are executed as Phase 2d in the Packer build after base configuration but before cleanup. Each variant directory contains a sequence of scripts executed in order.
+Variant scripts are executed as Phase 2d in the Packer build after base configuration but before cleanup. Each variant
+directory contains a sequence of scripts executed in order.
 
 **Example (k8s-node):**
+
 ```
 variants/k8s-node/
 ├── prepare.sh                    # Disable swap, load kernel modules, configure sysctl
@@ -168,6 +184,7 @@ variants/k8s-node/
 ```
 
 **Example (docker-host):**
+
 ```
 variants/docker-host/
 ├── install_docker.sh             # Install Docker Engine and Docker Compose
@@ -177,24 +194,25 @@ variants/docker-host/
 ### Variant Script Guidelines
 
 - **Environment variables available:**
-  - `LIB_SH` - Path to lib.sh
-  - `LIB_DIR` - Base directory for scripts
-  - `VARIANT` - Current variant name (e.g., "k8s-node")
-  - `K8S_VERSION` - Kubernetes version (k8s-node only)
-  - `CONTAINER_RUNTIME` - Container runtime choice (k8s-node only)
-  - `CRIO_VERSION` - CRI-O version (k8s-node with cri-o only)
+    - `LIB_CORE_SH` - Path to core library
+    - `LIB_OS_SH` - Path to OS-specific library (Debian/RHEL)
+    - `LIB_DIR` - Base directory for scripts
+    - `VARIANT` - Current variant name (e.g., "k8s-node")
+    - `K8S_VERSION` - Kubernetes version (k8s-node only)
+    - `CONTAINER_RUNTIME` - Container runtime choice (k8s-node only)
+    - `CRIO_VERSION` - CRI-O version (k8s-node with cri-o only)
 
 - **Follow the same rules as all scripts:**
-  - Use lib.sh helpers
-  - Maintain idempotency
-  - Log with lib functions
-  - Export `DEBIAN_FRONTEND=noninteractive`
+    - Use library helpers
+    - Maintain idempotency
+    - Log with lib functions
+    - Export `DEBIAN_FRONTEND=noninteractive`
 
 - **Variant-specific patterns:**
-  - Keep base box minimal; add functionality only in variants
-  - Variant scripts should not duplicate base configuration
-  - Branch on `CONTAINER_RUNTIME` or similar env vars for options
-  - Verify installations after completion
+    - Keep base box minimal; add functionality only in variants
+    - Variant scripts should not duplicate base configuration
+    - Branch on `CONTAINER_RUNTIME` or similar env vars for options
+    - Verify installations after completion
 
 ### Adding a New Variant
 
@@ -221,7 +239,8 @@ To add a new variant (e.g., database-server):
 ```bash
 #!/usr/bin/env bash
 set -o pipefail
-source "${LIB_SH}"
+source "${LIB_CORE_SH}"
+source "${LIB_OS_SH}"
 lib::strict
 lib::setup_traps
 lib::require_root
@@ -250,7 +269,8 @@ main "$@"
 
 set -o pipefail
 
-source "${LIB_SH}"
+source "${LIB_CORE_SH}"
+source "${LIB_OS_SH}"
 
 lib::strict
 lib::setup_traps
@@ -275,6 +295,7 @@ main "$@"
 - Provide feedback when skipping or applying changes.
 
 Examples
+
 - Package install: `lib::ensure_packages ca-certificates curl`
 - File copy if changed: `lib::ensure_file src.conf /etc/app/app.conf`
 - Service enable+start: `lib::ensure_service myservice`
@@ -300,31 +321,34 @@ Examples
 The scripts directory follows a four-tier organization for scalability.
 
 **Organization rules:**
+
 - `_common/` = Provider-agnostic + OS-family-agnostic scripts that work everywhere
 - `providers/{name}/` = Provider-specific integration (guest additions, drivers, services)
 - `{os}/` = OS-specific configuration (package managers, init systems, networking)
 - `variants/{name}/` = Variant-specific provisioning (k8s-node, docker-host, etc.)
 
 **Naming conventions:**
+
 - Use descriptive, action-oriented filenames (e.g., `sshd.sh`, `vagrant.sh`, `cleanup.sh`)
 - Drop OS suffixes when files are already in OS-specific directories (e.g., `cleanup.sh` not `cleanup_debian.sh`)
 - Keep script responsibilities narrow; split large scripts into logical units
 
 ## Do/Don’t Quick List
 
-- Do: source `lib.sh`, be idempotent, log via helpers, gate with `require_root`.
+- Do: source libraries (`${LIB_CORE_SH}`, `${LIB_OS_SH}`), be idempotent, log via helpers, gate with `require_root`.
 - Do: minimize apt calls, prefer helpers, verify downloads with checksums when possible.
 - Don’t: echo blindly, hardcode absolute paths that vary by distro, or reboot.
 - Don’t: introduce architecture-specific VirtualBox tweaks into scripts; keep that in Packer vars.
 
 ## Doc Changelog
 
-| Version | Date       | Changes                                                                                 |
-|---------|------------|-----------------------------------------------------------------------------------------|
-| 1.5.1   | 2025-11-13 | Changed: Replaced references to lib::apt_update_once with lib::ensure_apt_updated.      |
-| 1.5.0   | 2025-11-13 | Added Variant Pattern section; updated directory layout to four-tier with variants/.    |
-| 1.4.0   | 2025-11-13 | Added Provider Integration Pattern; lib helpers for providers; deprecated build_tools.  |
-| 1.3.0   | 2025-11-13 | Restructured directory layout: added providers/ tier; renamed debian scripts.           |
-| 1.2.0   | 2025-11-13 | Merged general Bash guidance; focused on this project; removed K8s/Azure specifics.     |
-| 1.1.0   | 2025-11-13 | Align header to root standard; clarify apt non-interactive; verifiers.                  |
-| 1.0.0   | 2025-11-13 | Initial version aligned to root documentation standard.                                 |
+| Version | Date       | Changes                                                                                                                                     |
+|---------|------------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| 1.6.0   | 2025-11-14 | Changed: Switch to modular libraries (`lib-core.sh` + OS-specific); updated sourcing pattern and environment vars (LIB_CORE_SH, LIB_OS_SH). |
+| 1.5.1   | 2025-11-13 | Changed: Replaced references to lib::apt_update_once with lib::ensure_apt_updated.                                                          |
+| 1.5.0   | 2025-11-13 | Added Variant Pattern section; updated directory layout to four-tier with variants/.                                                        |
+| 1.4.0   | 2025-11-13 | Added Provider Integration Pattern; lib helpers for providers; deprecated build_tools.                                                      |
+| 1.3.0   | 2025-11-13 | Restructured directory layout: added providers/ tier; renamed debian scripts.                                                               |
+| 1.2.0   | 2025-11-13 | Merged general Bash guidance; focused on this project; removed K8s/Azure specifics.                                                         |
+| 1.1.0   | 2025-11-13 | Align header to root standard; clarify apt non-interactive; verifiers.                                                                      |
+| 1.0.0   | 2025-11-13 | Initial version aligned to root documentation standard.                                                                                     |

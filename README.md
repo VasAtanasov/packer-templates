@@ -1,13 +1,15 @@
 ---
 title: Packer Vagrant Box Builder (Multi-Provider)
 status: Active
-version: 2.0.0
+version: 2.1.0
 scope: Provider × OS matrix organization for building Vagrant boxes
 ---
 
 # Packer Vagrant Box Builder (Multi-Provider)
 
-Packer setup for building Debian-based Vagrant boxes with support for multiple providers (VirtualBox, with VMware and QEMU planned). Uses **Provider × OS matrix** organization to support future expansion to Ubuntu and AlmaLinux without refactoring. Currently focused on Debian 12/13 with VirtualBox. Host-agnostic (works on Windows, Linux, macOS).
+Packer setup for building Debian-based Vagrant boxes with support for multiple providers (VirtualBox, with VMware and
+QEMU planned). Uses **Provider × OS matrix** organization to support future expansion to Ubuntu and AlmaLinux without
+refactoring. Currently focused on Debian 12/13 with VirtualBox. Host-agnostic (works on Windows, Linux, macOS).
 
 ## Highlights
 
@@ -42,19 +44,19 @@ make debian-12-docker   # Docker host variant
 
 ## Common Commands
 
-| Command                                                    | Description                                    |
-|------------------------------------------------------------|------------------------------------------------|
-| `make debian-12`                                           | Build Debian 12 x86_64 base box (recommended)  |
-| `make debian-12-k8s`                                       | Build Debian 12 x86_64 Kubernetes node         |
-| `make debian-12-docker`                                    | Build Debian 12 x86_64 Docker host             |
-| `make debian-13`                                           | Build Debian 13 x86_64 base box                |
-| `make build TEMPLATE=debian/12-x86_64.pkrvars.hcl`         | Build specific template (base variant)         |
-| `make build TEMPLATE=debian/12-x86_64.pkrvars.hcl VARIANT=k8s-node` | Build with variant          |
-| `make validate`                                            | Validate all templates                         |
-| `make clean`                                               | Remove build artifacts                         |
-| `make list-templates`                                      | Show available templates                       |
-| `make debug`                                               | Show configuration (PROVIDER, TARGET_OS, etc.) |
-| `make help`                                                | Show all available commands                    |
+| Command                                                             | Description                                    |
+|---------------------------------------------------------------------|------------------------------------------------|
+| `make debian-12`                                                    | Build Debian 12 x86_64 base box (recommended)  |
+| `make debian-12-k8s`                                                | Build Debian 12 x86_64 Kubernetes node         |
+| `make debian-12-docker`                                             | Build Debian 12 x86_64 Docker host             |
+| `make debian-13`                                                    | Build Debian 13 x86_64 base box                |
+| `make build TEMPLATE=debian/12-x86_64.pkrvars.hcl`                  | Build specific template (base variant)         |
+| `make build TEMPLATE=debian/12-x86_64.pkrvars.hcl VARIANT=k8s-node` | Build with variant                             |
+| `make validate`                                                     | Validate all templates                         |
+| `make clean`                                                        | Remove build artifacts                         |
+| `make list-templates`                                               | Show available templates                       |
+| `make debug`                                                        | Show configuration (PROVIDER, TARGET_OS, etc.) |
+| `make help`                                                         | Show all available commands                    |
 
 **Windows users:** Replace `make` with `rake` and use underscores (e.g., `rake debian_12_k8s`)
 
@@ -65,7 +67,9 @@ Provisioner strategy:
 - Upload entire `packer_templates/scripts/` tree to `/tmp/packer-scripts` (once, ephemeral)
 - Copy entire tree to `/usr/local/lib/k8s/scripts/` (persistent, survives reboots and cleanups)
 - All provisioners reference scripts from `/usr/local/lib/k8s/scripts/`
-- Scripts source `lib.sh` via `LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh` env var
+- Scripts source modular libraries via env vars:
+    - `LIB_CORE_SH=/usr/local/lib/k8s/scripts/_common/lib-core.sh`
+    - `LIB_OS_SH=/usr/local/lib/k8s/scripts/_common/lib-debian.sh` (or `lib-rhel.sh`)
 - Final cleanup removes entire `/usr/local/lib/k8s/` directory (no build helpers in final box)
 
 **Key benefit:** Scripts uploaded once and survive system reboots (Phase 1) and `/tmp` cleanup (Phase 3a)
@@ -81,8 +85,8 @@ Provisioner strategy:
 - Phase 2b: Provider integration (VirtualBox Guest Additions - installed by default)
 - Phase 2c: Base config (Vagrant user, SSH, networking, sudoers, systemd)
 - Phase 2d: Variant provisioning (only for non-base variants)
-  - **k8s-node**: Kernel config, container runtime (containerd/CRI-O), Kubernetes binaries
-  - **docker-host**: Docker engine and Docker Compose
+    - **k8s-node**: Kernel config, container runtime (containerd/CRI-O), Kubernetes binaries
+    - **docker-host**: Docker engine and Docker Compose
 
 ### Phase 3: Cleanup & Minimization
 
@@ -131,17 +135,19 @@ Edit or create a `.pkrvars.hcl` in `os_pkrvars/<os_name>/`:
 // os_pkrvars/debian/12-x86_64.pkrvars.hcl
 os_name    = "debian"
 os_version = "12.12"
-os_arch    = "x86_64"  # or aarch64
+os_arch = "x86_64"  # or aarch64
 
 iso_url      = "https://cdimage.debian.org/..."
 iso_checksum = "file:https://cdimage.debian.org/.../SHA256SUMS"
 
 vbox_guest_os_type = "Debian12_64"
-boot_command       = ["<wait><esc><wait>auto preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg netcfg/get_hostname={{ .Name }}<enter>"]
+boot_command = [
+  "<wait><esc><wait>auto preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg netcfg/get_hostname={{ .Name }}<enter>"
+]
 
 // Default resources (override via -var flags for variants)
-cpus      = 2
-memory    = 2048
+cpus   = 2
+memory = 2048
 disk_size = 40960
 
 // Default to base variant (override via -var='variant=k8s-node')
@@ -195,7 +201,10 @@ packer_templates/
   vmware/                  # VMware provider (planned)
     debian/                # Debian for VMware (planned)
   scripts/                 # Shared across all providers/OS
-    _common/               # Cross-distro scripts + lib.sh
+    _common/               # Cross-distro scripts + modular libraries
+      lib-core.sh          # OS-agnostic helpers
+      lib-debian.sh        # Debian/Ubuntu APT helpers
+      lib-rhel.sh          # AlmaLinux/Rocky DNF helpers
     debian/                # Debian-specific scripts
     providers/             # Provider-specific scripts
       virtualbox/          # VirtualBox Guest Additions
@@ -212,6 +221,7 @@ os_pkrvars/
 ```
 
 **Why this structure:**
+
 - **Provider isolation**: Each provider has its own directory with provider-specific config
 - **OS flexibility**: Easy to add Ubuntu, AlmaLinux by creating `<provider>/ubuntu/`, etc.
 - **No refactoring**: Future expansion happens by adding directories, not restructuring
@@ -220,6 +230,7 @@ os_pkrvars/
 ## Extending Later
 
 ### Add a New OS (e.g., Ubuntu)
+
 1. Create `packer_templates/virtualbox/ubuntu/` directory
 2. Copy `virtualbox/debian/{sources,builds,pkr-plugins}.pkr.hcl` as templates
 3. Create `virtualbox/ubuntu/http/` with Ubuntu autoinstall files
@@ -228,6 +239,7 @@ os_pkrvars/
 6. Add make/rake targets (e.g., `ubuntu-22-04`)
 
 ### Add a New Provider (e.g., VMware)
+
 1. Create `packer_templates/vmware/debian/` directory
 2. Create `sources.pkr.hcl` with `source "vmware-iso" "debian"` block
 3. Create `builds.pkr.hcl` (copy from VirtualBox, adjust paths)
@@ -237,6 +249,7 @@ os_pkrvars/
 7. Repeat for each OS (ubuntu, almalinux)
 
 ### Add a New Variant
+
 1. Create `packer_templates/scripts/variants/<name>/` directory
 2. Write provisioning scripts (e.g., `install.sh`, `configure.sh`)
 3. Add variant to `variant_scripts` map in `builds.pkr.hcl`
@@ -248,7 +261,7 @@ os_pkrvars/
 When making changes:
 
 1. Keep scripts simple and focused
-2. Use `lib.sh` helpers consistently
+2. Use library helpers consistently (`lib-core.sh` + OS library)
 3. Make scripts idempotent (safe to re-run)
 4. Test on both x86_64 and aarch64 when possible
 5. Update this README and CHANGELOG; add Doc Changelog entry to modified docs
@@ -259,12 +272,13 @@ When making changes:
 
 ## Doc Changelog
 
-| Version | Date       | Changes                                                              |
-|---------|------------|----------------------------------------------------------------------|
-| 2.0.0   | 2025-11-13 | **BREAKING**: Provider × OS matrix restructure; simplified variable files (12-x86_64.pkrvars.hcl); variant-via-flags approach; updated all command examples and architecture documentation; added Windows compatibility notes (TARGET_OS, quote fixes). |
-| 1.3.0   | 2025-11-13 | Align with current repo state; host-agnostic; GA policy; docs parity |
-| 1.2.1   | 2025-11-12 | Remove lib.sh from final box via cleanup provisioner                 |
-| 1.2.0   | 2025-11-12 | Add file+install for lib.sh and pass LIB_DIR/LIB_SH                  |
-| 1.1.2   | 2025-11-12 | Ensure lib.sh availability via file+inline provisioners              |
-| 1.1.1   | 2025-11-12 | Restore vbox_guest_additions_path variable                           |
-| 1.1.0   | 2025-11-12 | Focused on Debian+VirtualBox; pruned legacy HCL files                |
+| Version | Date       | Changes                                                                                                                                                                                                                                   |
+|---------|------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 2.1.0   | 2025-11-14 | Changed: Switch to modular libraries (`lib-core.sh`, `lib-debian.sh`, `lib-rhel.sh`); updated provisioning notes and directory structure.                                                                                                 |
+| 2.0.0   | 2025-11-13 | Provider × OS matrix restructure; simplified variable files (12-x86_64.pkrvars.hcl); variant-via-flags approach; updated all command examples and architecture documentation; added Windows compatibility notes (TARGET_OS, quote fixes). |
+| 1.3.0   | 2025-11-13 | Align with current repo state; host-agnostic; GA policy; docs parity                                                                                                                                                                      |
+| 1.2.1   | 2025-11-12 | Remove lib.sh from final box via cleanup provisioner                                                                                                                                                                                      |
+| 1.2.0   | 2025-11-12 | Add file+install for lib.sh and pass LIB_DIR/LIB_SH                                                                                                                                                                                       |
+| 1.1.2   | 2025-11-12 | Ensure lib.sh availability via file+inline provisioners                                                                                                                                                                                   |
+| 1.1.1   | 2025-11-12 | Restore vbox_guest_additions_path variable                                                                                                                                                                                                |
+| 1.1.0   | 2025-11-12 | Focused on Debian+VirtualBox; pruned legacy HCL files                                                                                                                                                                                     |
