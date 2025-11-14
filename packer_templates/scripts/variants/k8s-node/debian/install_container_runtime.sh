@@ -18,8 +18,8 @@ install_containerd() {
 
     lib::ensure_apt_updated
 
-    # Install and configure containerd
-    lib::ensure_packages containerd.io
+    # Install and configure containerd (Debian package name is 'containerd')
+    lib::ensure_packages containerd
 
     # Create default config if missing
     if [ ! -f /etc/containerd/config.toml ]; then
@@ -108,4 +108,3 @@ main() {
 }
 
 main "$@"
-
