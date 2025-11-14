@@ -22,6 +22,11 @@ and this project adheres to Semantic Versioning where practical.
 - Tests: `test/scripts/tests/lib_apt.bats` to validate APT helpers (TTL + invalidation, bulk installs).
 - `packer_templates/scripts/variants/k8s-node/SUPPORTED.md` documenting OS support and layout.
 - `packer_templates/scripts/variants/docker-host/SUPPORTED.md` documenting OS support and layout.
+- AlmaLinux VirtualBox support: `packer_templates/virtualbox/almalinux/` with `sources.pkr.hcl`, `builds.pkr.hcl`,
+  `pkr-plugins.pkr.hcl`, and Kickstart files under `http/rhel/` (`ks.cfg`, `8ks.cfg`).
+- RHEL-family base scripts: `packer_templates/scripts/rhel/systemd.sh`, `sudoers.sh`, `networking.sh` used in AlmaLinux
+  builds (Phase 2c).
+- Quick build targets for AlmaLinux 8/9/10 (x86_64 + aarch64) added to Makefile and Rakefile.
 
 ### Changed
 
@@ -54,6 +59,9 @@ and this project adheres to Semantic Versioning where practical.
 - Test Vagrantfiles and helpers updated to the new k8s-node layout.
 - Test Vagrantfiles and helpers updated to the new docker-host layout.
 - os_pkrvars: reformatted `boot_command` in all distro var files to multi-line lists for readability (no semantic change).
+- Ensure Makefile and Rakefile parity: added AlmaLinux quick build targets consistently.
+ - Makefile/Rakefile: `validate` now scopes to `os_pkrvars/<TARGET_OS>` instead of all OS var files, aligning behavior with documentation (Validate current PROVIDER/TARGET_OS only).
+ - Makefile/Rakefile: `validate` uses `-syntax-only` to avoid plugin/network requirements during validation (useful for CI/WSL/dev environments without initialized plugins).
 
 ### Removed
 
