@@ -167,6 +167,10 @@ locals {
     rocky     = "/usr/local/lib/k8s/scripts/_common/lib-rhel.sh"
     rhel      = "/usr/local/lib/k8s/scripts/_common/lib-rhel.sh"
   }
+
+  // Provider (VirtualBox) script paths by OS family
+  vbox_install_deps_script    = "providers/virtualbox/${local.os_family}/install_dependencies.sh"
+  vbox_guest_additions_script = "providers/virtualbox/${local.os_family}/guest_additions.sh"
 }
 
 // -----------------------------------------------------------------------------

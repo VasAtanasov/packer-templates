@@ -81,7 +81,7 @@ precedence over the root `AGENTS.md` for script-related changes.
 
 ## Provider Integration Pattern
 
-Provider-specific scripts live in `providers/{name}/` and follow a two-script pattern:
+Provider-specific scripts live in `providers/{name}/` using common + per‑OS subdirectories. Scripts follow a two-script pattern:
 
 ### 1. install_dependencies.sh
 
@@ -100,7 +100,7 @@ lib::require_root
 
 main() {
     lib::header "Installing VirtualBox build dependencies"
-    lib::install_kernel_build_deps  # Shared helper from lib.sh
+    lib::install_kernel_build_deps  # Provided by OS library (APT/DNF)
 
     if lib::check_reboot_required; then
         lib::warn "Reboot required after kernel packages"
@@ -123,12 +123,43 @@ Installs the provider-specific integration (guest additions, integration service
 - Clean up temporary files and logs
 - Check for reboot requirements via `lib::check_reboot_required()`
 
-### Shared Helpers in lib.sh
+### Shared Helpers in libraries
 
 Two helpers support provider integration:
 
-- `lib::install_kernel_build_deps()` - Installs build-essential, dkms, kernel headers
+- `lib::install_kernel_build_deps()` - Installs build tools + headers (APT/DNF handled by OS library)
 - `lib::check_reboot_required()` - Detects if reboot is needed after package changes
+
+### Providers Directory Layout (VirtualBox)
+
+```
+providers/virtualbox/
+  common/
+    install_dependencies.sh   # OS-agnostic logic
+    guest_additions.sh        # OS-agnostic logic
+  debian/
+    install_dependencies.sh   # Wrapper → ../common/install_dependencies.sh
+    guest_additions.sh        # Wrapper → ../common/guest_additions.sh
+  rhel/
+    install_dependencies.sh   # Wrapper or specialized logic (future)
+    guest_additions.sh        # Wrapper or specialized logic (future)
+  opensuse/
+    install_dependencies.sh   # Wrapper or specialized logic (future)
+    guest_additions.sh        # Wrapper or specialized logic (future)
+```
+
+Use Packer locals to choose the script by OS family:
+
+```hcl
+locals {
+  os_family = contains(["debian","ubuntu"], var.os_name) ? "debian"
+           : contains(["almalinux","rocky","rhel"], var.os_name) ? "rhel"
+           : var.os_name
+
+  vbox_install_deps_script    = "providers/virtualbox/${local.os_family}/install_dependencies.sh"
+  vbox_guest_additions_script = "providers/virtualbox/${local.os_family}/guest_additions.sh"
+}
+```
 
 ### Adding a New Provider
 
@@ -372,7 +403,7 @@ The scripts directory follows a four-tier organization for scalability.
 
 | Version | Date       | Changes                                                                                                                                     |
 |---------|------------|---------------------------------------------------------------------------------------------------------------------------------------------|
-| 1.7.0   | 2025-11-14 | Changed: Variants use OS-specific subdirectories; added dynamic per-OS selection example; updated k8s-node and docker-host layouts.         |
+| 1.7.0   | 2025-11-14 | Changed: Variants use OS-specific subdirectories; providers/virtualbox prepared for multi‑OS (common + per‑OS wrappers); added dynamic selection examples. |
 | 1.6.0   | 2025-11-14 | Changed: Switch to modular libraries (`lib-core.sh` + OS-specific); updated sourcing pattern and environment vars (LIB_CORE_SH, LIB_OS_SH). |
 | 1.5.1   | 2025-11-13 | Changed: Replaced references to lib::apt_update_once with lib::ensure_apt_updated.                                                          |
 | 1.5.0   | 2025-11-13 | Added Variant Pattern section; updated directory layout to four-tier with variants/.                                                        |

@@ -111,7 +111,11 @@ packer_templates/
       lib-rhel.sh           # AlmaLinux/Rocky DNF helpers (pkg install, repos)
     debian/                 # Debian-specific scripts
     providers/              # Provider-specific integration scripts
-      virtualbox/           # VirtualBox Guest Additions
+      virtualbox/           # VirtualBox integration (per-OS subdirs)
+        common/             # Shared across OS families
+        debian/             # Debian/Ubuntu wrappers or overrides
+        rhel/               # RHEL-family wrappers or overrides
+        opensuse/           # OpenSUSE wrappers or overrides
       hyperv/               # Hyper-V Integration Services (planned)
     variants/               # Variant-specific provisioning scripts (per-OS subdirs)
       k8s-node/
@@ -218,8 +222,8 @@ locals {
 
 **Phase 2: OS Configuration**
 
-- Phase 2a: Provider dependencies (`providers/virtualbox/install_dependencies.sh`)
-- Phase 2b: Provider integration (`providers/virtualbox/guest_additions.sh`)
+- Phase 2a: Provider dependencies (`providers/virtualbox/${os_family}/install_dependencies.sh`)
+- Phase 2b: Provider integration (`providers/virtualbox/${os_family}/guest_additions.sh`)
 - Phase 2c: Base config (SSH, Vagrant user, systemd, sudoers, networking)
 - Phase 2d: Variant provisioning (only for non-base variants)
     - K8s variant: `common/` (prepare, kernel) → `${os_family}/` (runtime + Kubernetes) → `common/` (networking)
@@ -523,7 +527,7 @@ make validate PROVIDER=vmware TARGET_OS=ubuntu  # Future: validate VMware Ubuntu
 
 | Version | Date       | Changes                                                                                                                                                                                                 |
 |---------|------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 2.2.0   | 2025-11-14 | Changed: Variants now use per-OS subdirectories; added dynamic variant script selection example; updated directory structure and Phase 2d notes.                                 |
+| 2.2.0   | 2025-11-14 | Changed: Variants now use per-OS subdirectories; providers/virtualbox prepared for multi‑OS (common + per‑OS wrappers); added dynamic selection examples; updated directory structure and Phase 2 notes. |
 | 2.1.0   | 2025-11-14 | Changed: Adopted modular libraries (`lib-core.sh`, `lib-debian.sh`, `lib-rhel.sh`); updated examples to use `LIB_CORE_SH` + `LIB_OS_SH`; updated directory structure and cleanup notes.                 |
 | 2.0.2   | 2025-11-13 | Changed: Replaced references to lib::apt_update_once with lib::ensure_apt_updated.                                                                                                                      |
 | 2.0.1   | 2025-11-13 | Fixed: Renamed OS→TARGET_OS in Makefile/Rakefile to avoid Windows `OS=Windows_NT` environment variable conflict; updated all documentation references.                                                  |

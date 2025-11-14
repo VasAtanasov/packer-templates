@@ -46,7 +46,7 @@ build {
   provisioner "shell" {
     only = var.vbox_guest_additions_mode != "disable" ? ["virtualbox-iso.debian"] : []
     inline = [
-      "bash /usr/local/lib/k8s/scripts/providers/virtualbox/install_dependencies.sh",
+      "bash /usr/local/lib/k8s/scripts/${local.vbox_install_deps_script}",
     ]
     environment_vars = [
       "LIB_DIR=/usr/local/lib/k8s",
@@ -62,7 +62,7 @@ build {
   provisioner "shell" {
     only = var.vbox_guest_additions_mode != "disable" ? ["virtualbox-iso.debian"] : []
     inline = [
-      "bash /usr/local/lib/k8s/scripts/providers/virtualbox/guest_additions.sh",
+      "bash /usr/local/lib/k8s/scripts/${local.vbox_guest_additions_script}",
     ]
     environment_vars = [
       "LIB_DIR=/usr/local/lib/k8s",
