@@ -41,8 +41,8 @@ This will:
 
 ```bash
 # Run each script individually
-bash /usr/local/lib/k8s/scripts/variants/docker-host/install_docker.sh
-bash /usr/local/lib/k8s/scripts/variants/docker-host/configure_docker.sh
+bash /usr/local/lib/k8s/scripts/variants/docker-host/debian/install_docker.sh
+bash /usr/local/lib/k8s/scripts/variants/docker-host/debian/configure_docker.sh
 ```
 
 ### Verify after each step
@@ -68,17 +68,17 @@ docker info | grep -E "(Storage Driver|Logging Driver)"
 3. Re-run the modified script:
    ```bash
    # Copy updated script
-   cp /scripts/variants/docker-host/install_docker.sh /usr/local/lib/k8s/scripts/variants/docker-host/
+   cp /scripts/variants/docker-host/debian/install_docker.sh /usr/local/lib/k8s/scripts/variants/docker-host/debian/
 
    # Re-run it
-   bash /usr/local/lib/k8s/scripts/variants/docker-host/install_docker.sh
+   bash /usr/local/lib/k8s/scripts/variants/docker-host/debian/install_docker.sh
    ```
 
 ### Run all scripts at once
 
 ```bash
-bash /usr/local/lib/k8s/scripts/variants/docker-host/install_docker.sh
-bash /usr/local/lib/k8s/scripts/variants/docker-host/configure_docker.sh
+bash /usr/local/lib/k8s/scripts/variants/docker-host/debian/install_docker.sh
+bash /usr/local/lib/k8s/scripts/variants/docker-host/debian/configure_docker.sh
 ```
 
 ### Test Docker as non-root

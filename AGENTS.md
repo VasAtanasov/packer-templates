@@ -1,6 +1,6 @@
 ---
 title: AGENTS (Root Guidance)
-version: 2.1.0
+version: 2.2.0
 status: Active
 scope: repo-wide
 ---
@@ -113,9 +113,14 @@ packer_templates/
     providers/              # Provider-specific integration scripts
       virtualbox/           # VirtualBox Guest Additions
       hyperv/               # Hyper-V Integration Services (planned)
-    variants/               # Variant-specific provisioning scripts
-      k8s-node/             # Kubernetes node variant
-      docker-host/          # Docker host variant
+    variants/               # Variant-specific provisioning scripts (per-OS subdirs)
+      k8s-node/
+        common/             # OS-agnostic steps (prepare, kernel, networking)
+        debian/             # Debian/Ubuntu steps (runtime + Kubernetes install)
+        rhel/               # RHEL family steps (planned)
+      docker-host/
+        debian/             # Debian/Ubuntu steps (install + configure)
+        rhel/               # RHEL family steps (planned)
 
 os_pkrvars/
   debian/                   # Debian variable files
@@ -169,6 +174,40 @@ HCL style conventions:
 - x86_64: ich9 chipset, SATA storage
 - aarch64: armv8virtual chipset, virtio storage, EFI firmware, USB peripherals
 
+### Variant Script Selection (Dynamic)
+
+Variant scripts are selected dynamically per OS family using locals inside `sources.pkr.hcl`. Example (VirtualBox Debian template):
+
+```hcl
+locals {
+  os_family = contains(["debian", "ubuntu"], var.os_name) ? "debian" : (
+    contains(["almalinux", "rocky", "rhel"], var.os_name) ? "rhel" : var.os_name
+  )
+
+  variant_scripts = {
+    "k8s-node" = concat(
+      [
+        "variants/k8s-node/common/prepare.sh",
+        "variants/k8s-node/common/configure_kernel.sh",
+      ],
+      [
+        "variants/k8s-node/${local.os_family}/install_container_runtime.sh",
+        "variants/k8s-node/${local.os_family}/install_kubernetes.sh",
+      ],
+      [
+        "variants/k8s-node/common/configure_networking.sh",
+      ],
+    )
+    "docker-host" = [
+      "variants/docker-host/${local.os_family}/install_docker.sh",
+      "variants/docker-host/${local.os_family}/configure_docker.sh",
+    ]
+  }
+
+  selected_variant_scripts = var.variant == "base" ? [] : lookup(local.variant_scripts, var.variant, [])
+}
+```
+
 ### 3-Phase Provisioning Strategy
 
 **Phase 1: System Preparation**
@@ -183,8 +222,8 @@ HCL style conventions:
 - Phase 2b: Provider integration (`providers/virtualbox/guest_additions.sh`)
 - Phase 2c: Base config (SSH, Vagrant user, systemd, sudoers, networking)
 - Phase 2d: Variant provisioning (only for non-base variants)
-    - K8s variant: prepare, configure_kernel, install_container_runtime, install_kubernetes, configure_networking
-    - Docker variant: install_docker, configure_docker
+    - K8s variant: `common/` (prepare, kernel) → `${os_family}/` (runtime + Kubernetes) → `common/` (networking)
+    - Docker variant: `${os_family}/` (install_docker, configure_docker)
 
 **Phase 3: Cleanup & Minimization**
 
@@ -484,6 +523,7 @@ make validate PROVIDER=vmware TARGET_OS=ubuntu  # Future: validate VMware Ubuntu
 
 | Version | Date       | Changes                                                                                                                                                                                                 |
 |---------|------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 2.2.0   | 2025-11-14 | Changed: Variants now use per-OS subdirectories; added dynamic variant script selection example; updated directory structure and Phase 2d notes.                                 |
 | 2.1.0   | 2025-11-14 | Changed: Adopted modular libraries (`lib-core.sh`, `lib-debian.sh`, `lib-rhel.sh`); updated examples to use `LIB_CORE_SH` + `LIB_OS_SH`; updated directory structure and cleanup notes.                 |
 | 2.0.2   | 2025-11-13 | Changed: Replaced references to lib::apt_update_once with lib::ensure_apt_updated.                                                                                                                      |
 | 2.0.1   | 2025-11-13 | Fixed: Renamed OS→TARGET_OS in Makefile/Rakefile to avoid Windows `OS=Windows_NT` environment variable conflict; updated all documentation references.                                                  |

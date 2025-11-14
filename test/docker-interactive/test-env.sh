@@ -20,6 +20,7 @@ echo ""
 export LIB_DIR=/usr/local/lib/k8s
 export LIB_CORE_SH=/usr/local/lib/k8s/scripts/_common/lib-core.sh
 export LIB_OS_SH=/usr/local/lib/k8s/scripts/_common/lib-debian.sh
+export OS_FAMILY=debian
 export VARIANT="docker-host"
 export DEBIAN_FRONTEND=noninteractive
 
@@ -45,18 +46,18 @@ fi
 
 echo ""
 echo -e "${BLUE}Available Docker variant scripts:${RESET}"
-echo "  1. ${LIB_DIR}/scripts/variants/docker-host/install_docker.sh"
-echo "  2. ${LIB_DIR}/scripts/variants/docker-host/configure_docker.sh"
+echo "  1. ${LIB_DIR}/scripts/variants/docker-host/${OS_FAMILY}/install_docker.sh"
+echo "  2. ${LIB_DIR}/scripts/variants/docker-host/${OS_FAMILY}/configure_docker.sh"
 echo ""
 
 echo -e "${BLUE}Quick commands:${RESET}"
 echo "  # Run scripts one by one:"
-echo "  bash ${LIB_DIR}/scripts/variants/docker-host/install_docker.sh"
-echo "  bash ${LIB_DIR}/scripts/variants/docker-host/configure_docker.sh"
+echo "  bash ${LIB_DIR}/scripts/variants/docker-host/${OS_FAMILY}/install_docker.sh"
+echo "  bash ${LIB_DIR}/scripts/variants/docker-host/${OS_FAMILY}/configure_docker.sh"
 echo ""
 echo "  # Or run all at once:"
-echo "  bash ${LIB_DIR}/scripts/variants/docker-host/install_docker.sh && \\"
-echo "  bash ${LIB_DIR}/scripts/variants/docker-host/configure_docker.sh"
+echo "  bash ${LIB_DIR}/scripts/variants/docker-host/${OS_FAMILY}/install_docker.sh && \\"
+echo "  bash ${LIB_DIR}/scripts/variants/docker-host/${OS_FAMILY}/configure_docker.sh"
 echo ""
 
 echo -e "${BLUE}Verification commands:${RESET}"

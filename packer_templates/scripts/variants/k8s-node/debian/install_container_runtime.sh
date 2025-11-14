@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
-# Install and configure container runtime for Kubernetes
-# Supports: containerd (default) and cri-o
+# Install container runtime (containerd or CRI-O) on Debian-based systems
 
 set -o pipefail
 
@@ -13,46 +12,39 @@ lib::setup_traps
 lib::require_root
 
 install_containerd() {
-    lib::log "Installing containerd..."
+    lib::header "Installing containerd"
 
     export DEBIAN_FRONTEND=noninteractive
+
     lib::ensure_apt_updated
 
-    # Install containerd
-    lib::ensure_packages containerd
+    # Install and configure containerd
+    lib::ensure_packages containerd.io
 
-    # Configure containerd to use systemd cgroup driver
-    lib::log "Configuring containerd..."
-    lib::ensure_directory /etc/containerd
-
+    # Create default config if missing
     if [ ! -f /etc/containerd/config.toml ]; then
+        lib::log "Generating containerd default configuration..."
+        mkdir -p /etc/containerd
         containerd config default > /etc/containerd/config.toml
-        lib::log "Generated default containerd configuration"
     fi
 
-    # Enable systemd cgroup driver (required for kubelet)
+    # Ensure systemd cgroup driver
     if ! grep -q "SystemdCgroup = true" /etc/containerd/config.toml; then
-        lib::log "Enabling systemd cgroup driver..."
-        sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+        lib::log "Setting SystemdCgroup=true in containerd config"
+        sed -i 's/^\(\s*SystemdCgroup\) = false/\1 = true/' /etc/containerd/config.toml || true
     fi
 
-    # Restart containerd to apply configuration
+    # Enable and start containerd
     lib::ensure_service containerd
-
-    lib::log "Verifying containerd installation..."
-    if command -v ctr >/dev/null 2>&1; then
-        local version
-        version=$(ctr --version | head -n1)
-        lib::log "Containerd installed: $version"
-    fi
 
     lib::success "containerd installed and configured"
 }
 
 install_crio() {
-    lib::log "Installing CRI-O..."
+    lib::header "Installing CRI-O"
 
     export DEBIAN_FRONTEND=noninteractive
+
     lib::ensure_apt_updated
 
     local os_version
@@ -116,3 +108,4 @@ main() {
 }
 
 main "$@"
+

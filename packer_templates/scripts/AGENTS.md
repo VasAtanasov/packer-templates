@@ -1,6 +1,6 @@
 ---
 title: AGENTS (Scripts Guidance)
-version: 1.6.0
+version: 1.7.0
 status: Active
 scope: packer_templates/scripts
 ---
@@ -169,26 +169,62 @@ Variants are activated via the `variant` variable in `.pkrvars.hcl` files.
 
 ### Variant Script Organization
 
-Variant scripts are executed as Phase 2d in the Packer build after base configuration but before cleanup. Each variant
-directory contains a sequence of scripts executed in order.
+Variant scripts are executed as Phase 2d in the Packer build after base configuration but before cleanup. Variants use
+explicit OS-family subdirectories. OS-agnostic logic lives in `common/`.
 
-**Example (k8s-node):**
+**k8s-node layout (OS-specific + common):**
 
 ```
 variants/k8s-node/
-├── prepare.sh                    # Disable swap, load kernel modules, configure sysctl
-├── configure_kernel.sh           # Kernel parameters for Kubernetes
-├── install_container_runtime.sh  # Install containerd or cri-o
-├── install_kubernetes.sh         # Install kubeadm, kubelet, kubectl
-└── configure_networking.sh       # Network plugins, CNI configuration
+├── common/
+│   ├── prepare.sh                 # Disable swap, kernel modules, core sysctl
+│   └── configure_kernel.sh        # Ensure modules at boot, verify
+├── debian/
+│   ├── install_container_runtime.sh  # containerd or CRI-O (APT)
+│   └── install_kubernetes.sh         # kubeadm, kubelet, kubectl (APT)
+├── rhel/                          # Planned: DNF-based equivalents
+└── common/
+    └── configure_networking.sh    # Bridge netfilter, IP forwarding
 ```
 
-**Example (docker-host):**
+**docker-host layout (OS-specific):**
 
 ```
 variants/docker-host/
-├── install_docker.sh             # Install Docker Engine and Docker Compose
-└── configure_docker.sh           # Configure daemon.json, logging, systemd limits
+├── debian/
+│   ├── install_docker.sh          # Docker Engine/CLI/Compose (APT)
+│   └── configure_docker.sh        # daemon.json, logrotate, systemd limits
+└── rhel/                          # Planned
+```
+
+Packer selects the correct per-OS scripts dynamically based on `local.os_family`.
+
+```hcl
+locals {
+  os_family = contains(["debian", "ubuntu"], var.os_name) ? "debian" : (
+    contains(["almalinux", "rocky", "rhel"], var.os_name) ? "rhel" : var.os_name
+  )
+
+  variant_scripts = {
+    "k8s-node" = concat(
+      [
+        "variants/k8s-node/common/prepare.sh",
+        "variants/k8s-node/common/configure_kernel.sh",
+      ],
+      [
+        "variants/k8s-node/${local.os_family}/install_container_runtime.sh",
+        "variants/k8s-node/${local.os_family}/install_kubernetes.sh",
+      ],
+      [
+        "variants/k8s-node/common/configure_networking.sh",
+      ],
+    )
+    "docker-host" = [
+      "variants/docker-host/${local.os_family}/install_docker.sh",
+      "variants/docker-host/${local.os_family}/configure_docker.sh",
+    ]
+  }
+}
 ```
 
 ### Variant Script Guidelines
@@ -219,20 +255,12 @@ variants/docker-host/
 To add a new variant (e.g., database-server):
 
 1. Create `variants/{name}/` directory
-2. Write ordered scripts (e.g., `install_postgres.sh`, `configure_postgres.sh`)
-3. Add variant to template's `variant_scripts` map:
-   ```hcl
-   variant_scripts = {
-     "k8s-node" = [...],
-     "database-server" = [
-       "variants/database-server/install_postgres.sh",
-       "variants/database-server/configure_postgres.sh",
-     ],
-   }
-   ```
-4. Update `variant` variable validation to include new variant
-5. Create `.pkrvars.hcl` files with `variant = "database-server"`
-6. Add make targets for convenience builds
+2. Add OS structure: `variants/{name}/common/` (optional), `variants/{name}/debian/`, `variants/{name}/rhel/` (as
+   needed)
+3. Write ordered scripts per OS (e.g., `debian/install_postgres.sh`, `debian/configure_postgres.sh`)
+4. Update the template `variant_scripts` map to use `${local.os_family}` for OS selection
+5. Update `variant` variable validation to include the new variant
+6. Add make/rake targets for convenience builds
 
 ### Variant Script Example
 
@@ -344,6 +372,7 @@ The scripts directory follows a four-tier organization for scalability.
 
 | Version | Date       | Changes                                                                                                                                     |
 |---------|------------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| 1.7.0   | 2025-11-14 | Changed: Variants use OS-specific subdirectories; added dynamic per-OS selection example; updated k8s-node and docker-host layouts.         |
 | 1.6.0   | 2025-11-14 | Changed: Switch to modular libraries (`lib-core.sh` + OS-specific); updated sourcing pattern and environment vars (LIB_CORE_SH, LIB_OS_SH). |
 | 1.5.1   | 2025-11-13 | Changed: Replaced references to lib::apt_update_once with lib::ensure_apt_updated.                                                          |
 | 1.5.0   | 2025-11-13 | Added Variant Pattern section; updated directory layout to four-tier with variants/.                                                        |

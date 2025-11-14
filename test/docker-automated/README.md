@@ -25,7 +25,7 @@ vagrant up
 This will:
 1. Start a Debian 12 base box
 2. Sync the scripts from `packer_templates/scripts`
-3. Automatically run all Docker variant scripts in order
+3. Automatically run all Docker variant scripts in order (debian/)
 4. Display verification results
 
 ### Test script changes

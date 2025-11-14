@@ -40,23 +40,23 @@ Vagrant.configure("2") do |config|
 
     echo ""
     echo "=== Phase 1: Prepare System for K8s ==="
-    bash /usr/local/lib/k8s/scripts/variants/k8s-node/prepare.sh
+    bash /usr/local/lib/k8s/scripts/variants/k8s-node/common/prepare.sh
 
     echo ""
     echo "=== Phase 2: Configure Kernel ==="
-    bash /usr/local/lib/k8s/scripts/variants/k8s-node/configure_kernel.sh
+    bash /usr/local/lib/k8s/scripts/variants/k8s-node/common/configure_kernel.sh
 
     echo ""
     echo "=== Phase 3: Install Container Runtime ==="
-    bash /usr/local/lib/k8s/scripts/variants/k8s-node/install_container_runtime.sh
+    bash /usr/local/lib/k8s/scripts/variants/k8s-node/debian/install_container_runtime.sh
 
     echo ""
     echo "=== Phase 4: Install Kubernetes ==="
-    bash /usr/local/lib/k8s/scripts/variants/k8s-node/install_kubernetes.sh
+    bash /usr/local/lib/k8s/scripts/variants/k8s-node/debian/install_kubernetes.sh
 
     echo ""
     echo "=== Phase 5: Configure Networking ==="
-    bash /usr/local/lib/k8s/scripts/variants/k8s-node/configure_networking.sh
+    bash /usr/local/lib/k8s/scripts/variants/k8s-node/common/configure_networking.sh
 
     echo ""
     echo "=================================================="

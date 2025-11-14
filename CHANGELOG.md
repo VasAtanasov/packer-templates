@@ -20,6 +20,8 @@ and this project adheres to Semantic Versioning where practical.
 - New doc: `doc/packer-organization-matrix-priority.md` outlining provider directories, OS-split sources, and
   arch/variant via variables.
 - Tests: `test/scripts/tests/lib_apt.bats` to validate APT helpers (TTL + invalidation, bulk installs).
+- `packer_templates/scripts/variants/k8s-node/SUPPORTED.md` documenting OS support and layout.
+- `packer_templates/scripts/variants/docker-host/SUPPORTED.md` documenting OS support and layout.
 
 ### Changed
 
@@ -29,8 +31,8 @@ and this project adheres to Semantic Versioning where practical.
 - Packer templates updated to pass `LIB_CORE_SH` and `LIB_OS_SH` environment variables to all provisioners.
 - Documentation updated (root AGENTS.md, scripts AGENTS.md, README) to reflect modular library structure and new env
   vars.
- - Tests updated to use modular libraries: Vagrantfiles and env scripts now export `LIB_CORE_SH`/`LIB_OS_SH`; Bats tests
-   adjusted (`lib_apt.bats` now sources `lib-debian.sh`).
+- Tests updated to use modular libraries: Vagrantfiles and env scripts now export `LIB_CORE_SH`/`LIB_OS_SH`; Bats tests
+  adjusted (`lib_apt.bats` now sources `lib-debian.sh`).
 - Documentation now states Guest Additions are to be installed during provisioning.
 - Host stance clarified as agnostic (no WSL2‑specific accommodations required).
 - Rakefile updated to match Makefile environment checks and minimum version enforcement.
@@ -44,6 +46,12 @@ and this project adheres to Semantic Versioning where practical.
   multiple packages.
 - lib.sh: `lib::ensure_apt_key_from_url` now marks the cache invalidated after installing a key, ensuring the next apt
   update refreshes signatures.
+- k8s-node variant scripts restructured into `common/` and `debian/` subdirectories; HCL updated to select per-OS
+  scripts dynamically via `local.os_family`.
+- docker-host variant scripts restructured into `debian/` subdirectory; HCL updated to select per-OS scripts via
+  `local.os_family`.
+- Test Vagrantfiles and helpers updated to the new k8s-node layout.
+- Test Vagrantfiles and helpers updated to the new docker-host layout.
 
 ### Removed
 

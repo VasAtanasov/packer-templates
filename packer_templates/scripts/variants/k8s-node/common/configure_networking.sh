@@ -36,20 +36,15 @@ main() {
             lib::log "Bridge netfilter: enabled"
         else
             lib::warn "Bridge netfilter not enabled - loading br_netfilter module..."
-            modprobe br_netfilter || true
-            sysctl -w net.bridge.bridge-nf-call-iptables=1 >/dev/null 2>&1
+            lib::ensure_kernel_module br_netfilter
+            echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
         fi
     else
-        lib::log "Bridge netfilter module not loaded (will be loaded on boot)"
+        lib::warn "/proc/sys/net/bridge/bridge-nf-call-iptables not present; ensure br_netfilter is available"
     fi
 
-    # Install network utilities that may be useful for debugging
-    export DEBIAN_FRONTEND=noninteractive
-    lib::ensure_apt_updated
-    lib::ensure_packages iproute2 net-tools
-
     lib::success "Networking configured for Kubernetes"
-    lib::log "Node is ready for CNI plugin installation"
 }
 
 main "$@"
+

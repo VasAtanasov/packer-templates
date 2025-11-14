@@ -41,11 +41,11 @@ This will:
 
 ```bash
 # Run each script individually
-bash /usr/local/lib/k8s/scripts/variants/k8s-node/prepare.sh
-bash /usr/local/lib/k8s/scripts/variants/k8s-node/configure_kernel.sh
-bash /usr/local/lib/k8s/scripts/variants/k8s-node/install_container_runtime.sh
-bash /usr/local/lib/k8s/scripts/variants/k8s-node/install_kubernetes.sh
-bash /usr/local/lib/k8s/scripts/variants/k8s-node/configure_networking.sh
+bash /usr/local/lib/k8s/scripts/variants/k8s-node/common/prepare.sh
+bash /usr/local/lib/k8s/scripts/variants/k8s-node/common/configure_kernel.sh
+bash /usr/local/lib/k8s/scripts/variants/k8s-node/debian/install_container_runtime.sh
+bash /usr/local/lib/k8s/scripts/variants/k8s-node/debian/install_kubernetes.sh
+bash /usr/local/lib/k8s/scripts/variants/k8s-node/common/configure_networking.sh
 ```
 
 ### Verify after each step
@@ -72,18 +72,20 @@ kubectl version --client
 3. Re-run the modified script:
    ```bash
    # Copy updated script
-   cp /scripts/variants/k8s-node/prepare.sh /usr/local/lib/k8s/scripts/variants/k8s-node/
+   cp /scripts/variants/k8s-node/common/prepare.sh /usr/local/lib/k8s/scripts/variants/k8s-node/common/
 
    # Re-run it
-   bash /usr/local/lib/k8s/scripts/variants/k8s-node/prepare.sh
+   bash /usr/local/lib/k8s/scripts/variants/k8s-node/common/prepare.sh
    ```
 
 ### Run all scripts at once
 
 ```bash
-for script in prepare.sh configure_kernel.sh install_container_runtime.sh install_kubernetes.sh configure_networking.sh; do
-  bash /usr/local/lib/k8s/scripts/variants/k8s-node/$script
-done
+bash /usr/local/lib/k8s/scripts/variants/k8s-node/common/prepare.sh
+bash /usr/local/lib/k8s/scripts/variants/k8s-node/common/configure_kernel.sh
+bash /usr/local/lib/k8s/scripts/variants/k8s-node/debian/install_container_runtime.sh
+bash /usr/local/lib/k8s/scripts/variants/k8s-node/debian/install_kubernetes.sh
+bash /usr/local/lib/k8s/scripts/variants/k8s-node/common/configure_networking.sh
 ```
 
 ### Clean up and restart

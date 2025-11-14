@@ -1,7 +1,7 @@
 ---
 title: Packer Vagrant Box Builder (Multi-Provider)
 status: Active
-version: 2.1.0
+version: 2.2.0
 scope: Provider × OS matrix organization for building Vagrant boxes
 ---
 
@@ -178,7 +178,7 @@ rake build TEMPLATE=debian/12-x86_64.pkrvars.hcl PROVIDER=virtualbox TARGET_OS=d
 
 Boxes expect Guest Additions to be installed during provisioning. Ensure
 `vbox_guest_additions_mode` is set to `attach` or `upload` and that
-`scripts/_common/guest_tools_virtualbox.sh` is included in Phase 2. Override the
+`scripts/providers/virtualbox/guest_additions.sh` is included in Phase 2. Override the
 ISO path via `vbox_guest_additions_path` if needed.
 
 ### Build Hangs at Boot
@@ -208,9 +208,14 @@ packer_templates/
     debian/                # Debian-specific scripts
     providers/             # Provider-specific scripts
       virtualbox/          # VirtualBox Guest Additions
-    variants/              # Variant-specific scripts
-      k8s-node/            # Kubernetes node provisioning
-      docker-host/         # Docker host provisioning
+    variants/              # Variant-specific scripts (per-OS subdirectories)
+      k8s-node/
+        common/            # OS-agnostic steps (prepare/kernel/networking)
+        debian/            # Debian/Ubuntu steps (runtime + Kubernetes)
+        rhel/              # RHEL family steps (planned)
+      docker-host/
+        debian/            # Debian/Ubuntu steps (install + configure)
+        rhel/              # RHEL family steps (planned)
 
 os_pkrvars/
   debian/                  # Debian variable files
@@ -226,6 +231,39 @@ os_pkrvars/
 - **OS flexibility**: Easy to add Ubuntu, AlmaLinux by creating `<provider>/ubuntu/`, etc.
 - **No refactoring**: Future expansion happens by adding directories, not restructuring
 - **Packer auto-aggregation**: All `.pkr.hcl` files in a directory are automatically combined
+
+### Variant Script Selection (Dynamic)
+
+Variants select scripts per OS family at build time. The template computes `local.os_family` from `var.os_name` and
+uses it to choose the correct per‑OS script paths:
+
+```hcl
+locals {
+  os_family = contains(["debian", "ubuntu"], var.os_name) ? "debian" : (
+    contains(["almalinux", "rocky", "rhel"], var.os_name) ? "rhel" : var.os_name
+  )
+
+  variant_scripts = {
+    "k8s-node" = concat(
+      [
+        "variants/k8s-node/common/prepare.sh",
+        "variants/k8s-node/common/configure_kernel.sh",
+      ],
+      [
+        "variants/k8s-node/${local.os_family}/install_container_runtime.sh",
+        "variants/k8s-node/${local.os_family}/install_kubernetes.sh",
+      ],
+      [
+        "variants/k8s-node/common/configure_networking.sh",
+      ],
+    )
+    "docker-host" = [
+      "variants/docker-host/${local.os_family}/install_docker.sh",
+      "variants/docker-host/${local.os_family}/configure_docker.sh",
+    ]
+  }
+}
+```
 
 ## Extending Later
 
@@ -251,10 +289,24 @@ os_pkrvars/
 ### Add a New Variant
 
 1. Create `packer_templates/scripts/variants/<name>/` directory
-2. Write provisioning scripts (e.g., `install.sh`, `configure.sh`)
-3. Add variant to `variant_scripts` map in `builds.pkr.hcl`
-4. Update `variant` variable validation in `sources.pkr.hcl`
-5. Add convenience make/rake targets
+2. Add OS layout: `common/` (optional), `debian/`, `rhel/` (as needed)
+3. Write ordered scripts per OS (e.g., `debian/install.sh`, `debian/configure.sh`)
+4. Add the variant to the template's `variant_scripts` map using dynamic OS selection in `sources.pkr.hcl`:
+   ```hcl
+   locals {
+     os_family = contains(["debian","ubuntu"], var.os_name) ? "debian" : (
+       contains(["almalinux","rocky","rhel"], var.os_name) ? "rhel" : var.os_name
+     )
+     variant_scripts = merge(local.variant_scripts, {
+       "<name>" = [
+         "variants/<name>/${local.os_family}/install.sh",
+         "variants/<name>/${local.os_family}/configure.sh",
+       ]
+     })
+   }
+   ```
+5. Update `variant` variable validation to include the new variant
+6. Add convenience make/rake targets
 
 ## Contributing
 
@@ -274,6 +326,7 @@ When making changes:
 
 | Version | Date       | Changes                                                                                                                                                                                                                                   |
 |---------|------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 2.2.0   | 2025-11-14 | Changed: Variants now use per-OS subdirectories; added dynamic selection example; updated directory structure and Guest Additions reference.                                                                                              |
 | 2.1.0   | 2025-11-14 | Changed: Switch to modular libraries (`lib-core.sh`, `lib-debian.sh`, `lib-rhel.sh`); updated provisioning notes and directory structure.                                                                                                 |
 | 2.0.0   | 2025-11-13 | Provider × OS matrix restructure; simplified variable files (12-x86_64.pkrvars.hcl); variant-via-flags approach; updated all command examples and architecture documentation; added Windows compatibility notes (TARGET_OS, quote fixes). |
 | 1.3.0   | 2025-11-13 | Align with current repo state; host-agnostic; GA policy; docs parity                                                                                                                                                                      |

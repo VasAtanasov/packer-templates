@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Install Kubernetes components: kubeadm, kubelet, kubectl
-# Pins version to prevent automatic updates
+# Pins version to prevent automatic updates (Debian-based systems)
 
 set -o pipefail
 
@@ -61,3 +61,4 @@ main() {
 }
 
 main "$@"
+

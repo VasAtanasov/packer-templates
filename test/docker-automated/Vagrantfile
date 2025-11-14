@@ -38,11 +38,11 @@ Vagrant.configure("2") do |config|
 
     echo ""
     echo "=== Phase 1: Install Docker ==="
-    bash /usr/local/lib/k8s/scripts/variants/docker-host/install_docker.sh
+    bash /usr/local/lib/k8s/scripts/variants/docker-host/debian/install_docker.sh
 
     echo ""
     echo "=== Phase 2: Configure Docker ==="
-    bash /usr/local/lib/k8s/scripts/variants/docker-host/configure_docker.sh
+    bash /usr/local/lib/k8s/scripts/variants/docker-host/debian/configure_docker.sh
 
     echo ""
     echo "=================================================="

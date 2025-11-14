@@ -128,19 +128,30 @@ locals {
   ) : var.vboxmanage
   iso_target_path = var.iso_target_path == "build_dir_iso" && var.iso_url != null ? "${path.root}/../../../builds/iso/${var.os_name}-${var.os_version}-${var.os_arch}-${substr(sha256(var.iso_url), 0, 8)}.iso" : var.iso_target_path
 
-  // Variant script mappings
+  // OS family used to select per-OS variant scripts
+  os_family = contains(["debian", "ubuntu"], var.os_name) ? "debian" : (
+    contains(["almalinux", "rocky", "rhel"], var.os_name) ? "rhel" : var.os_name
+  )
+
+  // Variant script mappings (dynamic for k8s-node)
   variant_scripts = {
-    "k8s-node" = [
-      "variants/k8s-node/prepare.sh",
-      "variants/k8s-node/configure_kernel.sh",
-      "variants/k8s-node/install_container_runtime.sh",
-      "variants/k8s-node/install_kubernetes.sh",
-      "variants/k8s-node/configure_networking.sh",
-    ],
+    "k8s-node" = concat(
+      [
+        "variants/k8s-node/common/prepare.sh",
+        "variants/k8s-node/common/configure_kernel.sh",
+      ],
+      [
+        "variants/k8s-node/${local.os_family}/install_container_runtime.sh",
+        "variants/k8s-node/${local.os_family}/install_kubernetes.sh",
+      ],
+      [
+        "variants/k8s-node/common/configure_networking.sh",
+      ],
+    )
     "docker-host" = [
-      "variants/docker-host/install_docker.sh",
-      "variants/docker-host/configure_docker.sh",
-    ],
+      "variants/docker-host/${local.os_family}/install_docker.sh",
+      "variants/docker-host/${local.os_family}/configure_docker.sh",
+    ]
   }
 
   // Select variant scripts (empty for base variant)
@@ -154,6 +165,7 @@ locals {
     ubuntu    = "/usr/local/lib/k8s/scripts/_common/lib-debian.sh"
     almalinux = "/usr/local/lib/k8s/scripts/_common/lib-rhel.sh"
     rocky     = "/usr/local/lib/k8s/scripts/_common/lib-rhel.sh"
+    rhel      = "/usr/local/lib/k8s/scripts/_common/lib-rhel.sh"
   }
 }
 
