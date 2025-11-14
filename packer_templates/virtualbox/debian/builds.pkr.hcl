@@ -34,7 +34,8 @@ build {
     ]
     environment_vars = [
       "LIB_DIR=/usr/local/lib/k8s",
-      "LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh",
+      "LIB_CORE_SH=${local.lib_core_sh}",
+      "LIB_OS_SH=${local.lib_os_sh[var.os_name]}",
     ]
     execute_command   = local.execute_command
     expect_disconnect = true // script may reboot
@@ -49,7 +50,8 @@ build {
     ]
     environment_vars = [
       "LIB_DIR=/usr/local/lib/k8s",
-      "LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh",
+      "LIB_CORE_SH=${local.lib_core_sh}",
+      "LIB_OS_SH=${local.lib_os_sh[var.os_name]}",
     ]
     execute_command   = local.execute_command
     expect_disconnect = true // may reboot if kernel packages installed
@@ -64,7 +66,8 @@ build {
     ]
     environment_vars = [
       "LIB_DIR=/usr/local/lib/k8s",
-      "LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh",
+      "LIB_CORE_SH=${local.lib_core_sh}",
+      "LIB_OS_SH=${local.lib_os_sh[var.os_name]}",
       "HOME_DIR=/home/vagrant",
     ]
     execute_command   = local.execute_command
@@ -82,7 +85,8 @@ build {
     ]
     environment_vars = [
       "LIB_DIR=/usr/local/lib/k8s",
-      "LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh",
+      "LIB_CORE_SH=${local.lib_core_sh}",
+      "LIB_OS_SH=${local.lib_os_sh[var.os_name]}",
     ]
     execute_command = local.execute_command
   }
@@ -102,7 +106,8 @@ build {
     environment_vars = concat(
       [
         "LIB_DIR=/usr/local/lib/k8s",
-        "LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh",
+        "LIB_CORE_SH=${local.lib_core_sh}",
+        "LIB_OS_SH=${local.lib_os_sh[var.os_name]}",
         "VARIANT=${var.variant}",
       ],
       # Add K8s-specific vars only for k8s-node variant
@@ -123,7 +128,8 @@ build {
     ]
     environment_vars = [
       "LIB_DIR=/usr/local/lib/k8s",
-      "LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh",
+      "LIB_CORE_SH=${local.lib_core_sh}",
+      "LIB_OS_SH=${local.lib_os_sh[var.os_name]}",
     ]
     execute_command = local.execute_command
   }
@@ -135,7 +141,8 @@ build {
     ]
     environment_vars = [
       "LIB_DIR=/usr/local/lib/k8s",
-      "LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh",
+      "LIB_CORE_SH=${local.lib_core_sh}",
+      "LIB_OS_SH=${local.lib_os_sh[var.os_name]}",
     ]
     execute_command = local.execute_command
   }

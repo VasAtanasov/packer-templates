@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
-# Shared Bash helpers for runtime/bootstrap scripts.
-# Safe to source multiple times. Define functions only if missing.
+# OS-agnostic shared Bash helpers for provisioning scripts.
+# Safe to source multiple times. Defines functions only if missing.
 
-if [ -n "${_LIB_BASH_INCLUDED:-}" ]; then
+if [ -n "${_LIB_CORE_INCLUDED:-}" ]; then
     return 0 2>/dev/null || exit 0
 fi
-readonly _LIB_BASH_INCLUDED=1
+readonly _LIB_CORE_INCLUDED=1
 
 # --- Color/TTY detection ---
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
@@ -122,12 +122,6 @@ if ! declare -F lib::cmd_exists >/dev/null 2>&1; then
 lib::cmd_exists() { command -v "$1" >/dev/null 2>&1; }
 fi
 
-if ! declare -F lib::pkg_installed >/dev/null 2>&1; then
-lib::pkg_installed() {
-    dpkg-query -W -f='${Status}\n' "$1" 2>/dev/null | grep -q "install ok installed"
-}
-fi
-
 if ! declare -F lib::systemd_active >/dev/null 2>&1; then
 lib::systemd_active() { systemctl is-active --quiet "$1"; }
 fi
@@ -175,171 +169,7 @@ lib::confirm() {
 }
 fi
 
-# --- APT helpers ---
-if ! declare -F lib::ensure_apt_updated >/dev/null 2>&1; then
-lib::ensure_apt_updated() {
-    # Avoid repeated updates within a short period and force after repo changes.
-    local ttl="${APT_UPDATE_TTL:-300}" # seconds
-    local now lists_dir need_update
-    now=$(date +%s)
-    lists_dir="/var/lib/apt/lists"
-    need_update=0
-
-    # Force update if repo list changed in this process
-    if [ "${APT_CACHE_INVALIDATED:-0}" = "1" ]; then
-        need_update=1
-    fi
-
-    # Force if apt lists directory appears empty (fresh image or cleanup)
-    if [ "$(find "$lists_dir" -type f 2>/dev/null | wc -l | tr -d ' ')" = "0" ]; then
-        need_update=1
-    fi
-
-    # Process-level throttle using APT_UPDATED_TS
-    if [ ${need_update} -eq 0 ] && [ -n "${APT_UPDATED_TS:-}" ] && [ $((now - APT_UPDATED_TS)) -lt "$ttl" ]; then
-        lib::debug "apt cache considered fresh (ttl=${ttl}s)"
-        return 0
-    fi
-
-    lib::log "Updating apt cache..."
-    if apt-get update -qq; then
-        APT_UPDATED_TS=$now; export APT_UPDATED_TS
-        APT_CACHE_INVALIDATED=0; export APT_CACHE_INVALIDATED
-        lib::log "apt cache updated"
-        return 0
-    else
-        # Even if update returns non-zero, many transient issues still leave cache usable.
-        APT_UPDATED_TS=$now; export APT_UPDATED_TS
-        lib::warn "apt update encountered warnings/errors"
-        return 0
-    fi
-}
-fi
-
-# Ensure an APT keyring from a URL (gpg --dearmor)
-if ! declare -F lib::ensure_apt_key_from_url >/dev/null 2>&1; then
-lib::ensure_apt_key_from_url() {
-    local url=$1 dest=$2
-    lib::ensure_directory "$(dirname "$dest")"
-    if [ -f "$dest" ]; then
-        lib::log "APT key present: $dest"
-        return 0
-    fi
-    lib::log "Fetching APT key from $url -> $dest"
-    if curl -fsSL "$url" | gpg --dearmor -o "$dest"; then
-        chmod a+r "$dest" || true
-        lib::log "APT key installed: $dest"
-        # Installing a new key may be followed by new sources; force cache refresh next time
-        APT_CACHE_INVALIDATED=1; export APT_CACHE_INVALIDATED
-    else
-        lib::error "Failed to install APT key: $url"
-        return 1
-    fi
-}
-fi
-
-# Ensure an APT source file contains exactly one line
-if ! declare -F lib::ensure_apt_source_file >/dev/null 2>&1; then
-lib::ensure_apt_source_file() {
-    local file=$1 line=$2
-    lib::ensure_directory "$(dirname "$file")"
-    if [ -f "$file" ] && grep -Fxq "$line" "$file"; then
-        lib::log "APT source present: $file"
-        return 0
-    fi
-    lib::log "Writing APT source: $file"
-    printf '%s\n' "$line" > "$file"
-    # Mark cache as invalidated so next ensure_apt_updated will refresh
-    APT_CACHE_INVALIDATED=1; export APT_CACHE_INVALIDATED
-    return 0
-}
-fi
-
-# --- Packages / Tools ---
-if ! declare -F lib::ensure_package >/dev/null 2>&1; then
-lib::ensure_package() {
-    local package=$1
-    if lib::pkg_installed "$package"; then
-        lib::log "$package already installed"
-        return 0
-    fi
-    lib::ensure_apt_updated
-    lib::log "Installing $package..."
-    if apt-get install -y "$package" >/dev/null 2>&1; then
-        lib::log "$package installed"
-    else
-        lib::error "Failed to install $package"
-        return 1
-    fi
-}
-fi
-
-if ! declare -F lib::ensure_packages >/dev/null 2>&1; then
-lib::ensure_packages() {
-    local to_install=() p
-    for p in "$@"; do
-        if lib::pkg_installed "$p"; then
-            lib::log "$p already installed"
-        else
-            to_install+=("$p")
-        fi
-    done
-    if [ ${#to_install[@]} -eq 0 ]; then
-        return 0
-    fi
-    lib::ensure_apt_updated
-    lib::log "Installing packages: ${to_install[*]}..."
-    if apt-get install -y "${to_install[@]}" >/dev/null 2>&1; then
-        lib::log "Packages installed"
-        return 0
-    else
-        lib::error "Failed to install packages: ${to_install[*]}"
-        return 1
-    fi
-}
-fi
-
-# --- Provider Support ---
-# Helpers for provider integration (guest additions, kernel modules, etc.)
-
-if ! declare -F lib::install_kernel_build_deps >/dev/null 2>&1; then
-lib::install_kernel_build_deps() {
-    lib::log "Installing kernel build dependencies..."
-    export DEBIAN_FRONTEND=noninteractive
-    lib::ensure_apt_updated
-
-    local arch
-    arch="$(dpkg --print-architecture 2>/dev/null || uname -m)"
-
-    # Install kernel headers for current running kernel
-    local kernel_headers="linux-headers-$(uname -r)"
-
-    lib::ensure_packages build-essential dkms bzip2 tar "$kernel_headers"
-    lib::success "Kernel build dependencies installed"
-}
-fi
-
-if ! declare -F lib::check_reboot_required >/dev/null 2>&1; then
-lib::check_reboot_required() {
-    # Check for the /var/run/reboot-required file (Debian/Ubuntu)
-    if [ -f /var/run/reboot-required ]; then
-        lib::log "Reboot required (found /var/run/reboot-required)"
-        return 0
-    fi
-
-    # Check for needs-restarting command (RHEL-based systems)
-    if command -v needs-restarting >/dev/null 2>&1; then
-        if needs-restarting -r >/dev/null 2>&1 || needs-restarting -s >/dev/null 2>&1; then
-            lib::log "Reboot required (needs-restarting)"
-            return 0
-        fi
-    fi
-
-    lib::log "No reboot required"
-    return 1
-}
-fi
-
+# --- Command/binary helpers (OS-agnostic) ---
 if ! declare -F lib::ensure_command >/dev/null 2>&1; then
 lib::ensure_command() {
     local cmd=$1 install_func=${2:-}
@@ -589,7 +419,7 @@ lib::ensure_env_kv() {
 }
 fi
 
-# --- Kubernetes system prep ---
+# --- System configuration (OS-agnostic) ---
 if ! declare -F lib::ensure_swap_disabled >/dev/null 2>&1; then
 lib::ensure_swap_disabled() {
     if [ "$(swapon --show | wc -l)" -eq 0 ]; then
@@ -645,119 +475,6 @@ lib::ensure_sysctl() {
 }
 fi
 
-# --- Bootstrap Hooks & Scoped Env ---
-# These functions consolidate repeated logic across bootstrap templates.
-
-# Helper: source file if exists
-if ! declare -F lib::source_if_exists >/dev/null 2>&1; then
-lib::source_if_exists() {
-    local f="$1"
-    if [ -f "$f" ]; then
-        # shellcheck disable=SC1090
-        source "$f"
-    fi
-}
-fi
-
-# Helper: run all .sh files in directory
-if ! declare -F lib::run_hook_dir >/dev/null 2>&1; then
-lib::run_hook_dir() {
-    local d="$1"
-    if [ -d "$d" ]; then
-        for f in "$d"/*.sh; do
-            [ -f "$f" ] || continue
-            bash "$f"
-        done
-    fi
-}
-fi
-
-# Source scoped environment overrides
-# Usage: lib::source_scoped_envs <script_dir>
-# Requires: CLUSTER_NAME or CLUSTER_TYPE, NODE_ROLE (optional)
-if ! declare -F lib::source_scoped_envs >/dev/null 2>&1; then
-lib::source_scoped_envs() {
-    local script_dir="${1:?script_dir required}"
-    local scope_cluster="${CLUSTER_NAME:-${CLUSTER_TYPE:-}}"
-    local scope_role="${NODE_ROLE:-}"
-
-    # First, source global bootstrap.env.local if present
-    lib::source_if_exists "${script_dir}/bootstrap.env.local"
-
-    # Then source scoped env overrides (applied in order: cluster -> role -> cluster-role)
-    if [ -n "${scope_cluster}" ]; then
-        lib::source_if_exists "${script_dir}/env/cluster/${scope_cluster}.env.local"
-    fi
-    if [ -n "${scope_role}" ]; then
-        lib::source_if_exists "${script_dir}/env/role/${scope_role}.env.local"
-    fi
-    if [ -n "${scope_cluster}" ] && [ -n "${scope_role}" ]; then
-        lib::source_if_exists "${script_dir}/env/cluster-role/${scope_cluster}-${scope_role}.env.local"
-    fi
-}
-fi
-
-# Run all pre-bootstrap hooks
-# Usage: lib::run_pre_hooks <script_dir>
-# Requires: CLUSTER_NAME or CLUSTER_TYPE, NODE_ROLE (optional)
-if ! declare -F lib::run_pre_hooks >/dev/null 2>&1; then
-lib::run_pre_hooks() {
-    local script_dir="${1:?script_dir required}"
-    local scope_cluster="${CLUSTER_NAME:-${CLUSTER_TYPE:-}}"
-    local scope_role="${NODE_ROLE:-}"
-
-    # Global pre hook (single file)
-    if [ -f "${script_dir}/bootstrap.pre.local.sh" ]; then
-        bash "${script_dir}/bootstrap.pre.local.sh"
-    fi
-
-    # Global pre hooks (directory)
-    lib::run_hook_dir "${script_dir}/bootstrap.pre.d"
-
-    # Scoped pre hooks (in order: common -> cluster -> role -> cluster-role)
-    lib::run_hook_dir "${script_dir}/bootstrap.pre.d/common"
-    if [ -n "${scope_cluster}" ]; then
-        lib::run_hook_dir "${script_dir}/bootstrap.pre.d/cluster/${scope_cluster}"
-    fi
-    if [ -n "${scope_role}" ]; then
-        lib::run_hook_dir "${script_dir}/bootstrap.pre.d/role/${scope_role}"
-    fi
-    if [ -n "${scope_cluster}" ] && [ -n "${scope_role}" ]; then
-        lib::run_hook_dir "${script_dir}/bootstrap.pre.d/cluster-role/${scope_cluster}-${scope_role}"
-    fi
-}
-fi
-
-# Run all post-bootstrap hooks
-# Usage: lib::run_post_hooks <script_dir>
-# Requires: CLUSTER_NAME or CLUSTER_TYPE, NODE_ROLE (optional)
-if ! declare -F lib::run_post_hooks >/dev/null 2>&1; then
-lib::run_post_hooks() {
-    local script_dir="${1:?script_dir required}"
-    local scope_cluster="${CLUSTER_NAME:-${CLUSTER_TYPE:-}}"
-    local scope_role="${NODE_ROLE:-}"
-
-    # Global post hook (single file)
-    if [ -f "${script_dir}/bootstrap.post.local.sh" ]; then
-        bash "${script_dir}/bootstrap.post.local.sh"
-    fi
-
-    # Global post hooks (directory)
-    lib::run_hook_dir "${script_dir}/bootstrap.post.d"
-
-    # Scoped post hooks (in order: common -> cluster -> role -> cluster-role)
-    lib::run_hook_dir "${script_dir}/bootstrap.post.d/common"
-    if [ -n "${scope_cluster}" ]; then
-        lib::run_hook_dir "${script_dir}/bootstrap.post.d/cluster/${scope_cluster}"
-    fi
-    if [ -n "${scope_role}" ]; then
-        lib::run_hook_dir "${script_dir}/bootstrap.post.d/role/${scope_role}"
-    fi
-    if [ -n "${scope_cluster}" ] && [ -n "${scope_role}" ]; then
-        lib::run_hook_dir "${script_dir}/bootstrap.post.d/cluster-role/${scope_cluster}-${scope_role}"
-    fi
-}
-fi
 # --- Verification helpers ---
 if ! declare -F lib::verify_commands >/dev/null 2>&1; then
 lib::verify_commands() {
@@ -798,70 +515,6 @@ lib::verify_services() {
         else
             lib::error "$s: not running"
             ((failed++))
-        fi
-    done
-    return $failed
-}
-fi
-
-# --- Azure helpers ---
-if ! declare -F lib::check_azure_login >/dev/null 2>&1; then
-lib::check_azure_login() {
-    if ! command -v az >/dev/null 2>&1; then
-        lib::error "Azure CLI (az) is not installed."
-        return 127
-    fi
-    if ! az account show >/dev/null 2>&1; then
-        lib::error "Not logged in to Azure CLI. Run: az login --use-device-code"
-        return 1
-    fi
-    lib::debug "Azure account: $(az account show --query name -o tsv 2>/dev/null || true)"
-}
-fi
-
-if ! declare -F lib::ensure_provider_registered >/dev/null 2>&1; then
-lib::ensure_provider_registered() {
-    local provider state i failed=0
-    local max_wait=${PROVIDER_REGISTRATION_TIMEOUT:-150}
-    local max_attempts=$((max_wait / 5))
-
-    for provider in "$@"; do
-        state=$(az provider show -n "$provider" --query registrationState -o tsv 2>/dev/null || echo "NotRegistered")
-
-        # Early exit: already registered
-        if [ "$state" = "Registered" ]; then
-            lib::debug "Provider already registered: $provider"
-            continue
-        fi
-
-        # Guard: auto-registration not enabled
-        if [ "${REGISTER_PROVIDERS:-0}" != "1" ]; then
-            lib::warn "Provider $provider not Registered. Set REGISTER_PROVIDERS=1 to auto-register."
-            continue
-        fi
-
-        # Attempt registration
-        lib::log "Registering provider: $provider (state=$state)"
-        if ! az provider register -n "$provider" --only-show-errors >/dev/null; then
-            lib::error "Failed to initiate registration for provider: $provider"
-            failed=1
-            continue
-        fi
-
-        # Poll until Registered or timeout
-        for i in $(seq 1 "$max_attempts"); do
-            state=$(az provider show -n "$provider" --query registrationState -o tsv 2>/dev/null || echo "NotRegistered")
-            if [ "$state" = "Registered" ]; then
-                lib::success "Provider registered: $provider"
-                break
-            fi
-            sleep 5
-        done
-
-        # Check final state
-        if [ "$state" != "Registered" ]; then
-            lib::warn "Provider '$provider' registration state after timeout: $state"
-            failed=1
         fi
     done
     return $failed

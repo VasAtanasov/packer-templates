@@ -6,7 +6,8 @@
 
 set -o pipefail
 
-source "${LIB_SH}"
+source "${LIB_CORE_SH}"
+source "${LIB_OS_SH}"
 
 lib::strict
 lib::setup_traps

@@ -146,6 +146,15 @@ locals {
   // Select variant scripts (empty for base variant)
   selected_variant_scripts = var.variant == "base" ? [] : lookup(local.variant_scripts, var.variant, [])
   execute_command          = "echo 'vagrant' | {{ .Vars }} sudo -S -E sh -eux '{{ .Path }}'"
+
+  // Library paths (core + OS-specific)
+  lib_core_sh = "/usr/local/lib/k8s/scripts/_common/lib-core.sh"
+  lib_os_sh = {
+    debian    = "/usr/local/lib/k8s/scripts/_common/lib-debian.sh"
+    ubuntu    = "/usr/local/lib/k8s/scripts/_common/lib-debian.sh"
+    almalinux = "/usr/local/lib/k8s/scripts/_common/lib-rhel.sh"
+    rocky     = "/usr/local/lib/k8s/scripts/_common/lib-rhel.sh"
+  }
 }
 
 // -----------------------------------------------------------------------------
