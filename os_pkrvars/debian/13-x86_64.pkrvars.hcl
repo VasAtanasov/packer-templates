@@ -14,7 +14,12 @@ iso_url      = "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian
 iso_checksum = "file:https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/SHA256SUMS"
 
 vbox_guest_os_type = "Debian12_64"
-boot_command       = ["<wait><esc><wait>auto preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg netcfg/get_hostname={{ .Name }}<enter>"]
+boot_command = [
+  "<wait>",
+  "<esc><wait>",
+  "auto preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg netcfg/get_hostname={{ .Name }}",
+  "<enter>",
+]
 
 // Default resources (override via -var flags for variants)
 cpus      = 2

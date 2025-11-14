@@ -14,7 +14,40 @@ iso_url      = "https://cdimage.debian.org/cdimage/archive/latest-oldstable/arm6
 iso_checksum = "file:https://cdimage.debian.org/cdimage/archive/latest-oldstable/arm64/iso-cd/SHA256SUMS"
 
 vbox_guest_os_type = "Debian12_arm64"
-boot_command       = ["<wait>e<wait><down><down><down><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><wait>install <wait> preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg <wait>debian-installer=en_US.UTF-8 <wait>auto <wait>locale=en_US.UTF-8 <wait>kbd-chooser/method=us <wait>keyboard-configuration/xkb-keymap=us <wait>netcfg/get_hostname={{ .Name }} <wait>netcfg/get_domain=vagrantup.com <wait>fb=false <wait>debconf/frontend=noninteractive <wait>console-setup/ask_detect=false <wait>console-keymaps-at/keymap=us <wait>grub-installer/bootdev=default <wait><f10><wait>"]
+boot_command = [
+  "<wait>e<wait>",
+  "<down><down><down><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><right><wait>",
+  "install ",
+  "<wait>",
+  " preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg ",
+  "<wait>",
+  "debian-installer=en_US.UTF-8 ",
+  "<wait>",
+  "auto ",
+  "<wait>",
+  "locale=en_US.UTF-8 ",
+  "<wait>",
+  "kbd-chooser/method=us ",
+  "<wait>",
+  "keyboard-configuration/xkb-keymap=us ",
+  "<wait>",
+  "netcfg/get_hostname={{ .Name }} ",
+  "<wait>",
+  "netcfg/get_domain=vagrantup.com ",
+  "<wait>",
+  "fb=false ",
+  "<wait>",
+  "debconf/frontend=noninteractive ",
+  "<wait>",
+  "console-setup/ask_detect=false ",
+  "<wait>",
+  "console-keymaps-at/keymap=us ",
+  "<wait>",
+  "grub-installer/bootdev=default ",
+  "<wait>",
+  "<f10>",
+  "<wait>",
+]
 
 // Default resources (override via -var flags for variants)
 cpus      = 2

@@ -53,6 +53,7 @@ and this project adheres to Semantic Versioning where practical.
   `local.os_family`.
 - Test Vagrantfiles and helpers updated to the new k8s-node layout.
 - Test Vagrantfiles and helpers updated to the new docker-host layout.
+- os_pkrvars: reformatted `boot_command` in all distro var files to multi-line lists for readability (no semantic change).
 
 ### Removed
 

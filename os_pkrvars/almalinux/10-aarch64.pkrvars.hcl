@@ -4,4 +4,11 @@ os_arch                 = "aarch64"
 iso_url                 = "https://repo.almalinux.org/almalinux/10/isos/aarch64/AlmaLinux-10.0-aarch64-boot.iso"
 iso_checksum            = "file:https://repo.almalinux.org/almalinux/10/isos/aarch64/CHECKSUM"
 vbox_guest_os_type      = "Oracle_arm64"
-boot_command            = ["<wait><up><wait>e<wait><down><wait><down><wait><end><wait> inst.ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/rhel/ks.cfg inst.repo=https://repo.almalinux.org/almalinux/10/BaseOS/aarch64/os/ <wait><leftCtrlOn><wait>x<wait><leftCtrlOff>"]
+boot_command = [
+  "<wait>",
+  "<up><wait>e<wait>",
+  "<down><wait><down><wait><end><wait>",
+  " inst.ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/rhel/ks.cfg",
+  " inst.repo=https://repo.almalinux.org/almalinux/10/BaseOS/aarch64/os/ ",
+  "<wait><leftCtrlOn><wait>x<wait><leftCtrlOff>",
+]

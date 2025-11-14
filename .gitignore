@@ -10,7 +10,7 @@ packer.log
 Gemfile.lock
 bootstrap.sh
 /builds/
-
+.claude/
 # Created by https://www.toptal.com/developers/gitignore/api/packer,vagrant,rubymine+all
 # Edit at https://www.toptal.com/developers/gitignore?templates=packer,vagrant,rubymine+all
 
