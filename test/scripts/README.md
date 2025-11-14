@@ -1,6 +1,6 @@
 ---
 title: Bash Script Tests
-version: 1.1.0
+version: 1.2.0
 status: Active
 scope: tests/scripts
 ---
@@ -23,10 +23,14 @@ VAGRANT_VAGRANTFILE=Vagrantfile.test vagrant destroy -f
 
 ## What It Does
 - Installs `bats` in the VM
-- Installs `lib.sh` to `/usr/local/lib/k8s/lib.sh`
+- Installs modular libraries under `/usr/local/lib/k8s/scripts/_common/`:
+  - `lib-core.sh` (OS-agnostic)
+  - `lib-debian.sh` (APT-based)
+  - `lib-rhel.sh` (DNF-based)
 - Sets test environment variables:
   - `SCRIPTS_DIR=/scripts` - Location of provisioning scripts
-  - `LIB_SH=/usr/local/lib/k8s/lib.sh` - Path to lib.sh
+  - `LIB_CORE_SH=/usr/local/lib/k8s/scripts/_common/lib-core.sh`
+  - `LIB_OS_SH=/usr/local/lib/k8s/scripts/_common/lib-debian.sh` (or `lib-rhel.sh`)
   - `LIB_DIR=/usr/local/lib/k8s` - Library directory
 - Runs all tests under `tests/`
 
@@ -34,6 +38,7 @@ VAGRANT_VAGRANTFILE=Vagrantfile.test vagrant destroy -f
 
 | Version | Date       | Changes                                                       |
 |---------|------------|---------------------------------------------------------------|
+| 1.2.0   | 2025-11-14 | Switched docs to modular libraries (LIB_CORE_SH, LIB_OS_SH).  |
 | 1.1.0   | 2025-11-13 | Added environment variables for flexible script path testing |
 | 1.0.0   | 2025-11-13 | Initial testing instructions                                  |
 

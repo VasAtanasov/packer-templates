@@ -1,11 +1,13 @@
 #!/usr/bin/env bats
 
-# Tests for APT-related helpers in packer_templates/scripts/_common/lib.sh
+# Tests for APT-related helpers in packer_templates/scripts/_common/lib-debian.sh
 
 setup() {
-  # Ensure lib is available
-  [ -n "$LIB_SH" ]
-  source "$LIB_SH"
+  # Ensure libraries are available and source them
+  [ -n "$LIB_CORE_SH" ]
+  [ -n "$LIB_OS_SH" ]
+  source "$LIB_CORE_SH"
+  source "$LIB_OS_SH"
 
   # Fake tools to avoid real network/system changes
   export _APT_TEST_DIR=/tmp/apt-test
@@ -73,7 +75,7 @@ last_install_line() {
 }
 
 @test "ensure_apt_updated runs update once and respects TTL" {
-  run bash -lc 'source "$LIB_SH"; lib::ensure_apt_updated; lib::ensure_apt_updated'
+  run bash -lc 'source "$LIB_CORE_SH"; source "$LIB_OS_SH"; lib::ensure_apt_updated; lib::ensure_apt_updated'
   [ "$status" -eq 0 ]
   [ "$(count_updates)" -eq 1 ]
 }
@@ -84,7 +86,7 @@ last_install_line() {
   export APT_CACHE_INVALIDATED=0
   : > /tmp/apt-test/log
 
-  run bash -lc 'source "$LIB_SH"; lib::ensure_apt_source_file \
+  run bash -lc 'source "$LIB_CORE_SH"; source "$LIB_OS_SH"; lib::ensure_apt_source_file \
     "/etc/apt/sources.list.d/test-bats.list" \
     "deb [arch=amd64] http://example.invalid stable main"; lib::ensure_apt_updated'
   [ "$status" -eq 0 ]
@@ -94,20 +96,20 @@ last_install_line() {
 
 @test "ensure_apt_key_from_url installs key and invalidates cache" {
   : > /tmp/apt-test/log
-  run bash -lc 'source "$LIB_SH"; lib::ensure_apt_key_from_url \
+  run bash -lc 'source "$LIB_CORE_SH"; source "$LIB_OS_SH"; lib::ensure_apt_key_from_url \
     "https://example.invalid/key" \
     "/etc/apt/keyrings/test-bats.gpg"'
   [ "$status" -eq 0 ]
   [ -f /etc/apt/keyrings/test-bats.gpg ]
 
-  run bash -lc 'source "$LIB_SH"; lib::ensure_apt_updated'
+  run bash -lc 'source "$LIB_CORE_SH"; source "$LIB_OS_SH"; lib::ensure_apt_updated'
   [ "$status" -eq 0 ]
   [ "$(count_updates)" -ge 1 ]
 }
 
 @test "ensure_packages does one update and one bulk install" {
   : > /tmp/apt-test/log
-  run bash -lc 'source "$LIB_SH"; lib::ensure_packages foo-bar-baz foo-bar-baz2 foo-bar-baz3'
+  run bash -lc 'source "$LIB_CORE_SH"; source "$LIB_OS_SH"; lib::ensure_packages foo-bar-baz foo-bar-baz2 foo-bar-baz3'
   [ "$status" -eq 0 ]
   # Exactly one update and one install
   [ "$(count_updates)" -eq 1 ]
@@ -118,4 +120,3 @@ last_install_line() {
   [[ "$line" == *"foo-bar-baz2"* ]]
   [[ "$line" == *"foo-bar-baz3"* ]]
 }
-

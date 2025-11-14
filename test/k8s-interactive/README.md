@@ -33,7 +33,7 @@ source /scripts/test-env.sh
 ```
 
 This will:
-- Set all required environment variables (LIB_DIR, LIB_SH, K8S_VERSION, etc.)
+- Set all required environment variables (LIB_DIR, LIB_CORE_SH, LIB_OS_SH, K8S_VERSION, etc.)
 - Install scripts to `/usr/local/lib/k8s/scripts/`
 - Display available scripts and commands
 
@@ -105,7 +105,8 @@ source /scripts/test-env.sh
 The `test-env.sh` script sets these variables (same as Packer):
 
 - `LIB_DIR=/usr/local/lib/k8s`
-- `LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh`
+- `LIB_CORE_SH=/usr/local/lib/k8s/scripts/_common/lib-core.sh`
+- `LIB_OS_SH=/usr/local/lib/k8s/scripts/_common/lib-debian.sh` (or `lib-rhel.sh`)
 - `K8S_VERSION="1.28"`
 - `CONTAINER_RUNTIME="containerd"`
 - `CRIO_VERSION="1.28"`

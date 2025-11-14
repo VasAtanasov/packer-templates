@@ -18,13 +18,15 @@ echo ""
 
 # Set environment variables (same as Packer)
 export LIB_DIR=/usr/local/lib/k8s
-export LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh
+export LIB_CORE_SH=/usr/local/lib/k8s/scripts/_common/lib-core.sh
+export LIB_OS_SH=/usr/local/lib/k8s/scripts/_common/lib-debian.sh
 export VARIANT="docker-host"
 export DEBIAN_FRONTEND=noninteractive
 
 echo -e "${BLUE}Environment variables set:${RESET}"
 echo "  LIB_DIR=$LIB_DIR"
-echo "  LIB_SH=$LIB_SH"
+echo "  LIB_CORE_SH=$LIB_CORE_SH"
+echo "  LIB_OS_SH=$LIB_OS_SH"
 echo "  VARIANT=$VARIANT"
 echo ""
 

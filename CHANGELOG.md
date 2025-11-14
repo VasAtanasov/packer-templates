@@ -29,6 +29,8 @@ and this project adheres to Semantic Versioning where practical.
 - Packer templates updated to pass `LIB_CORE_SH` and `LIB_OS_SH` environment variables to all provisioners.
 - Documentation updated (root AGENTS.md, scripts AGENTS.md, README) to reflect modular library structure and new env
   vars.
+ - Tests updated to use modular libraries: Vagrantfiles and env scripts now export `LIB_CORE_SH`/`LIB_OS_SH`; Bats tests
+   adjusted (`lib_apt.bats` now sources `lib-debian.sh`).
 - Documentation now states Guest Additions are to be installed during provisioning.
 - Host stance clarified as agnostic (no WSL2‑specific accommodations required).
 - Rakefile updated to match Makefile environment checks and minimum version enforcement.

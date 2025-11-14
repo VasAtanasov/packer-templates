@@ -23,7 +23,8 @@ Vagrant.configure("2") do |config|
 
     # Set environment variables (same as Packer)
     export LIB_DIR=/usr/local/lib/k8s
-    export LIB_SH=/usr/local/lib/k8s/scripts/_common/lib.sh
+    export LIB_CORE_SH=/usr/local/lib/k8s/scripts/_common/lib-core.sh
+    export LIB_OS_SH=/usr/local/lib/k8s/scripts/_common/lib-debian.sh
     export K8S_VERSION="1.33"
     export CONTAINER_RUNTIME="containerd"
     export VARIANT="k8s-node"
