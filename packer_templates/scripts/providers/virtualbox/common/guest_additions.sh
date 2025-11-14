@@ -20,7 +20,7 @@ main() {
 
     local home_dir="${HOME_DIR:-/home/vagrant}"
     local arch
-    arch="$(dpkg --print-architecture 2>/dev/null || uname -m)"
+    arch="$(uname -m)"
 
     # Read Guest Additions version from .vbox_version file
     if [ ! -f "${home_dir}/.vbox_version" ]; then
@@ -55,11 +55,14 @@ main() {
     lib::log "Installing Guest Additions for architecture: ${arch}"
 
     local installer
-    if [ "${arch}" = "aarch64" ] || [ "${arch}" = "arm64" ]; then
-        installer="${mount_point}/VBoxLinuxAdditions-arm64.run"
-    else
-        installer="${mount_point}/VBoxLinuxAdditions.run"
-    fi
+    case "${arch}" in
+        aarch64|arm64)
+            installer="${mount_point}/VBoxLinuxAdditions-arm64.run"
+            ;;
+        *)
+            installer="${mount_point}/VBoxLinuxAdditions.run"
+            ;;
+    esac
 
     if [ ! -f "${installer}" ]; then
         lib::error "Guest Additions installer not found: ${installer}"

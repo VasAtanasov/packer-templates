@@ -7,7 +7,9 @@ vbox_guest_os_type      = "RedHat_64"
 boot_command = [
   "<wait>",
   "<up><wait><tab><wait><end><wait>",
-  " inst.ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/rhel/ks.cfg",
-  " inst.repo=https://repo.almalinux.org/almalinux/9/BaseOS/x86_64/os/ ",
+  " inst.ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ks.cfg",
+  " ip=dhcp",
+  " rd.neednet=1",
+  " inst.repo=https://repo.almalinux.org/almalinux/9/BaseOS/x86_64/os/",
   "<wait><enter><wait>",
 ]

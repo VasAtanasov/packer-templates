@@ -22,6 +22,7 @@ and this project adheres to Semantic Versioning where practical.
 - Tests: `test/scripts/tests/lib_apt.bats` to validate APT helpers (TTL + invalidation, bulk installs).
 - `packer_templates/scripts/variants/k8s-node/SUPPORTED.md` documenting OS support and layout.
 - `packer_templates/scripts/variants/docker-host/SUPPORTED.md` documenting OS support and layout.
+- Make/Rake: `validate-all`/`validate_all` target/task to validate every OS under `os_pkrvars/`, skipping OSes without matching template directories.
 - AlmaLinux VirtualBox support: `packer_templates/virtualbox/almalinux/` with `sources.pkr.hcl`, `builds.pkr.hcl`,
   `pkr-plugins.pkr.hcl`, and Kickstart files under `http/rhel/` (`ks.cfg`, `8ks.cfg`).
 - RHEL-family base scripts: `packer_templates/scripts/rhel/systemd.sh`, `sudoers.sh`, `networking.sh` used in AlmaLinux
@@ -66,3 +67,8 @@ and this project adheres to Semantic Versioning where practical.
 ### Removed
 
 - Deleted `doc/CONTRIBUTING_BASH.md` in favor of consolidated guidance in `packer_templates/scripts/AGENTS.md`.
+
+### Fixed
+
+- AlmaLinux 9: Kickstart fetch failures fixed by correcting `boot_command` to use `/rhel/ks.cfg` and adding early-network kernel args (`ip=dhcp rd.neednet=1`).
+- AlmaLinux 9 aarch64: Corrected `inst.repo` architecture from `x86_64` to `aarch64`.

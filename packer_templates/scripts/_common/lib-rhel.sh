@@ -141,15 +141,29 @@ if ! declare -F lib::install_kernel_build_deps >/dev/null 2>&1; then
 lib::install_kernel_build_deps() {
     lib::log "Installing kernel build dependencies..."
     lib::ensure_yum_dnf_updated
-    local kernel_devel="kernel-devel-$(uname -r)"
-    # Try to install Development Tools group (ignore failures quietly)
+
+    lib::log "Installing kernel development packages..."
     if command -v dnf >/dev/null 2>&1; then
-        dnf groupinstall -y "Development Tools" >/dev/null 2>&1 || true
+        dnf install -y --skip-broken perl cpp gcc make bzip2 tar kernel-headers kernel-devel kernel-uek-devel 2>/dev/null || true
     else
-        yum groupinstall -y "Development Tools" >/dev/null 2>&1 || true
+        yum install -y --skip-broken perl cpp gcc make bzip2 tar kernel-headers kernel-devel kernel-uek-devel 2>/dev/null || true
     fi
-    lib::ensure_packages dkms tar bzip2 "$kernel_devel"
+
     lib::success "Kernel build dependencies installed"
+}
+fi
+
+# Remove Kernel build dependencies (RHEL family)
+if ! declare -F lib::remove_kernel_build_deps >/dev/null 2>&1; then
+lib::remove_kernel_build_deps() {
+    lib::log "Removing kernel dev packages and compilers we no longer need..."
+    if command -v dnf >/dev/null 2>&1; then
+        dnf remove -y gcc cpp kernel-headers kernel-devel kernel-uek-devel
+    else
+        yum remove -y gcc cpp kernel-headers kernel-devel kernel-uek-devel
+    fi
+
+    lib::success "Kernel build dependencies removed"
 }
 fi
 

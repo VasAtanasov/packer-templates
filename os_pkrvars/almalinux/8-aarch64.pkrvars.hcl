@@ -8,7 +8,9 @@ boot_command = [
   "<wait>",
   "<up><wait>e<wait>",
   "<down><wait><down><wait><end><wait>",
-  " inst.ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/rhel/8ks.cfg",
-  " inst.repo=https://repo.almalinux.org/almalinux/8/BaseOS/aarch64/os/ ",
+  " inst.ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/8ks.cfg",
+  " ip=dhcp",
+  " rd.neednet=1",
+  " inst.repo=https://repo.almalinux.org/almalinux/8/BaseOS/aarch64/os/",
   "<wait><leftCtrlOn><wait>x<wait><leftCtrlOff>",
 ]

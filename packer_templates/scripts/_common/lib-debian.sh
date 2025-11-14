@@ -146,7 +146,7 @@ lib::install_kernel_build_deps() {
 
     local kernel_headers="linux-headers-$(uname -r)"
 
-    lib::ensure_packages build-essential dkms bzip2 tar "$kernel_headers"
+    lib::ensure_packages build-essential dkms bzip2 tar gcc g++ make libc6-dev "$kernel_headers"
     lib::success "Kernel build dependencies installed"
 }
 fi

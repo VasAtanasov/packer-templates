@@ -26,8 +26,8 @@ K8S_VERSION ?= 1.33
 PACKER_MIN_VER ?= 1.7.0
 VBOX_MIN_VER   ?= 7.1.6
 
-# Find all .pkrvars.hcl files
-PKRVARS_FILES := $(shell find $(PKRVARS_DIR) -name "*.pkrvars.hcl" 2>/dev/null | sort)
+# Find all .pkrvars.hcl files for current TARGET_OS
+PKRVARS_FILES := $(shell find $(PKRVARS_DIR)/$(TARGET_OS) -name "*.pkrvars.hcl" 2>/dev/null | sort)
 
 # Build configuration
 PROVIDERS ?= virtualbox-iso.vm
@@ -46,12 +46,25 @@ validate: ## Validate all Packer templates for current provider/OS
 	@template_dir=$(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(TARGET_OS); \
 	for var_file in $(PKRVARS_FILES); do \
 		echo -e "\n$(GREEN)Validating with $$var_file$(RESET)\n"; \
-		packer validate -var-file=$$var_file $$template_dir || { \
+		packer validate -syntax-only -var-file=$$var_file $$template_dir || { \
 			echo -e "$(RED)Validation failed for $$var_file$(RESET)"; \
 			exit 1; \
 		}; \
 	done
 	@echo -e "\n$(GREEN)All templates validated successfully!$(RESET)"
+
+.PHONY: validate-all
+validate-all: ## Validate templates for all OSes under os_pkrvars (skips OSes without templates)
+	@for dir in $(PKRVARS_DIR)/*/; do \
+		os=$$(basename $$dir); \
+		template_dir=$(TEMPLATE_DIR_BASE)/$(PROVIDER)/$$os; \
+		if [ -d "$$template_dir" ]; then \
+			echo -e "\n$(GREEN)=== Validating $$os ===$(RESET)\n"; \
+			$(MAKE) validate TARGET_OS=$$os || exit 1; \
+		else \
+			echo -e "$(YELLOW)Skipping $$os: no template dir $$template_dir$(RESET)"; \
+		fi; \
+	done
 
 .PHONY: validate-one
 validate-one: ## Validate a single template (usage: make validate-one TEMPLATE=debian/12-x86_64.pkrvars.hcl)
@@ -63,7 +76,7 @@ endif
 	@template_dir=$(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(TARGET_OS); \
 	var_file=$(PKRVARS_DIR)/$(TEMPLATE); \
 	echo -e "$(GREEN)Validating $(PROVIDER)/$(TARGET_OS) with $$var_file$(RESET)\n"; \
-	packer validate -var-file=$$var_file $$template_dir
+	packer validate -syntax-only -var-file=$$var_file $$template_dir
 
 ##@ Building
 
@@ -96,21 +109,23 @@ endif
 		$$template_dir
 
 .PHONY: build-all
-build-all: init ## Build all boxes
-	@echo -e "$(GREEN)Building all boxes...$(RESET)\n"
-	@for template in $(PKRVARS_FILES); do \
-		template_dir=$$(dirname $$template); \
-		filename=$$(basename $$template); \
-		echo -e "\n$(GREEN)Building $$template$(RESET)\n"; \
-		(cd $$template_dir && packer build \
-			-var-file=$$filename \
-			-only=$(PROVIDERS) \
-			../../$(TEMPLATE_DIR)) || { \
-			echo -e "$(RED)Build failed for $$template$(RESET)"; \
-			exit 1; \
+build-all: init ## Build all boxes for current provider/OS
+	@echo -e "$(GREEN)Building all boxes for $(PROVIDER)/$(TARGET_OS)...$(RESET)\n"
+	@template_dir=$(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(TARGET_OS); \
+	failed=0; \
+	for var_file in $(PKRVARS_FILES); do \
+		echo -e "\n$(GREEN)Building $$var_file$(RESET)\n"; \
+		packer build -var-file=$$var_file $$template_dir || { \
+			echo -e "$(RED)Build failed for $$var_file$(RESET)"; \
+			failed=1; \
 		}; \
-	done
-	@echo -e "\n$(GREEN)All boxes built successfully!$(RESET)"
+	done; \
+	if [ $$failed -eq 0 ]; then \
+		echo -e "\n$(GREEN)All boxes built successfully!$(RESET)"; \
+	else \
+		echo -e "\n$(RED)Some builds failed$(RESET)"; \
+		exit 1; \
+	fi
 
 .PHONY: force-build
 force-build: clean build ## Clean and rebuild
@@ -154,19 +169,16 @@ list-builds: ## List all built boxes
 	fi
 
 .PHONY: inspect
-inspect: ## Inspect a template (usage: make inspect TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl)
+inspect: ## Inspect a template (usage: make inspect TEMPLATE=debian/12-x86_64.pkrvars.hcl)
 ifndef TEMPLATE
 	@echo -e "$(RED)Error: TEMPLATE variable not set$(RESET)"
-	@echo "Usage: make inspect TEMPLATE=debian/debian-12-x86_64.pkrvars.hcl"
+	@echo "Usage: make inspect TEMPLATE=debian/12-x86_64.pkrvars.hcl [PROVIDER=virtualbox] [TARGET_OS=debian]"
 	@exit 1
 endif
-	@template_path=$(PKRVARS_DIR)/$(TEMPLATE); \
-	template_dir=$$(dirname $$template_path); \
-	filename=$$(basename $$template_path); \
-	echo -e "$(GREEN)Inspecting $$template_path$(RESET)\n"; \
-	(cd $$template_dir && packer inspect \
-		-var-file=$$filename \
-		../../$(TEMPLATE_DIR))
+	@template_dir=$(TEMPLATE_DIR_BASE)/$(PROVIDER)/$(TARGET_OS); \
+	var_file=$(PKRVARS_DIR)/$(TEMPLATE); \
+	echo -e "$(GREEN)Inspecting $(PROVIDER)/$(TARGET_OS) with $$var_file$(RESET)\n"; \
+	packer inspect -var-file=$$var_file $$template_dir
 
 ##@ Quick Builds (VirtualBox + Debian)
 
@@ -201,6 +213,32 @@ debian-13: ## Build Debian 13 x86_64 base box
 .PHONY: debian-13-arm
 debian-13-arm: ## Build Debian 13 aarch64 base box
 	@$(MAKE) build TEMPLATE=debian/13-aarch64.pkrvars.hcl
+
+##@ Quick Builds (VirtualBox + AlmaLinux)
+
+.PHONY: almalinux-8
+almalinux-8: ## Build AlmaLinux 8 x86_64 base box
+	@$(MAKE) build TEMPLATE=almalinux/8-x86_64.pkrvars.hcl PROVIDER=virtualbox TARGET_OS=almalinux
+
+.PHONY: almalinux-8-arm
+almalinux-8-arm: ## Build AlmaLinux 8 aarch64 base box
+	@$(MAKE) build TEMPLATE=almalinux/8-aarch64.pkrvars.hcl PROVIDER=virtualbox TARGET_OS=almalinux
+
+.PHONY: almalinux-9
+almalinux-9: ## Build AlmaLinux 9 x86_64 base box
+	@$(MAKE) build TEMPLATE=almalinux/9-x86_64.pkrvars.hcl PROVIDER=virtualbox TARGET_OS=almalinux
+
+.PHONY: almalinux-9-arm
+almalinux-9-arm: ## Build AlmaLinux 9 aarch64 base box
+	@$(MAKE) build TEMPLATE=almalinux/9-aarch64.pkrvars.hcl PROVIDER=virtualbox TARGET_OS=almalinux
+
+.PHONY: almalinux-10
+almalinux-10: ## Build AlmaLinux 10 x86_64 base box
+	@$(MAKE) build TEMPLATE=almalinux/10-x86_64.pkrvars.hcl PROVIDER=virtualbox TARGET_OS=almalinux
+
+.PHONY: almalinux-10-arm
+almalinux-10-arm: ## Build AlmaLinux 10 aarch64 base box
+	@$(MAKE) build TEMPLATE=almalinux/10-aarch64.pkrvars.hcl PROVIDER=virtualbox TARGET_OS=almalinux
 
 ##@ Development
 
