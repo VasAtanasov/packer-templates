@@ -146,8 +146,18 @@ lib::install_kernel_build_deps() {
 
     local kernel_headers="linux-headers-$(uname -r)"
 
-    lib::ensure_packages build-essential dkms bzip2 tar gcc g++ make libc6-dev "$kernel_headers"
+    lib::ensure_packages build-essential dkms bzip2 tar "$kernel_headers"
     lib::success "Kernel build dependencies installed"
+}
+fi
+
+# Remove kernel build dependencies for VirtualBox additions on Debian/Ubuntu
+if ! declare -F lib::remove_kernel_build_deps >/dev/null 2>&1; then
+lib::remove_kernel_build_deps() {
+    local kernel_headers="linux-headers-$(uname -r)"
+
+    apt-get remove -y build-essential gcc g++ make libc6-dev dkms "$kernel_headers"
+    lib::success "Kernel build dependencies removed"
 }
 fi
 

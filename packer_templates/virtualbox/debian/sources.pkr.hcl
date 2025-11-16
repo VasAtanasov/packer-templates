@@ -108,7 +108,7 @@ variable "crio_version" {
 locals {
   box_name         = var.variant == "base" ? "${var.os_name}-${var.os_version}-${var.os_arch}" : "${var.os_name}-${var.os_version}-${var.os_arch}-${var.variant}"
   output_directory = var.output_directory == null ? "${path.root}/../../../builds/build_files/packer-${var.os_name}-${var.os_version}-${var.os_arch}" : var.output_directory
-  vboxmanage       = var.vboxmanage == null ? (
+  vboxmanage = var.vboxmanage == null ? (
     var.os_arch == "aarch64" ? [
       ["modifyvm", "{{.Name}}", "--chipset", "armv8virtual"],
       ["modifyvm", "{{.Name}}", "--audio-enabled", "off"],
@@ -119,7 +119,7 @@ locals {
       ["modifyvm", "{{.Name}}", "--mouse", "usb"],
       ["modifyvm", "{{.Name}}", "--keyboard", "usb"],
       ["storagectl", "{{.Name}}", "--name", "IDE Controller", "--remove"],
-    ] : [
+      ] : [
       ["modifyvm", "{{.Name}}", "--chipset", "ich9"],
       ["modifyvm", "{{.Name}}", "--audio-enabled", "off"],
       ["modifyvm", "{{.Name}}", "--nat-localhostreachable1", "on"],
@@ -171,6 +171,7 @@ locals {
   // Provider (VirtualBox) script paths by OS family
   vbox_install_deps_script    = "providers/virtualbox/${local.os_family}/install_dependencies.sh"
   vbox_guest_additions_script = "providers/virtualbox/${local.os_family}/guest_additions.sh"
+  vbox_remove_deps_script     = "providers/virtualbox/${local.os_family}/remove_dependencies.sh"
 }
 
 // -----------------------------------------------------------------------------

@@ -18,6 +18,9 @@ main() {
     # Use shared library helper for kernel build dependencies
     lib::remove_kernel_build_deps
 
+    lib::log "removing leftover logs"
+    rm -rf /var/log/vboxadd*
+
     # Check if reboot is required after package installation
     if lib::check_reboot_required; then
         lib::warn "Reboot required after installing kernel packages"

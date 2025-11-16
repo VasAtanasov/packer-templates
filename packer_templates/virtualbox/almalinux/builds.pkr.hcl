@@ -41,28 +41,14 @@ build {
     expect_disconnect = true // script may reboot
   }
 
-  // Phase 2a: Provider dependencies (kernel headers, build tools for VirtualBox)
+  // Phase 2a: Provider integration (Guest Additions)
   // Skip when Guest Additions are disabled by template var
   provisioner "shell" {
     only = var.vbox_guest_additions_mode != "disable" ? ["virtualbox-iso.almalinux"] : []
     inline = [
       "bash /usr/local/lib/k8s/scripts/${local.vbox_install_deps_script}",
-    ]
-    environment_vars = [
-      "LIB_DIR=/usr/local/lib/k8s",
-      "LIB_CORE_SH=${local.lib_core_sh}",
-      "LIB_OS_SH=${local.lib_os_sh[var.os_name]}",
-    ]
-    execute_command   = local.execute_command
-    expect_disconnect = true // may reboot if kernel packages installed
-  }
-
-  // Phase 2b: Provider integration (Guest Additions)
-  // Skip when Guest Additions are disabled by template var
-  provisioner "shell" {
-    only = var.vbox_guest_additions_mode != "disable" ? ["virtualbox-iso.almalinux"] : []
-    inline = [
       "bash /usr/local/lib/k8s/scripts/${local.vbox_guest_additions_script}",
+      "bash /usr/local/lib/k8s/scripts/${local.vbox_remove_deps_script}",
     ]
     environment_vars = [
       "LIB_DIR=/usr/local/lib/k8s",
@@ -74,7 +60,7 @@ build {
     expect_disconnect = true // may reboot after installation
   }
 
-  // Phase 2c: Base config for Vagrant + RHEL-family bits
+  // Phase 2b: Base config for Vagrant + RHEL-family bits
   provisioner "shell" {
     inline = [
       "bash /usr/local/lib/k8s/scripts/_common/sshd.sh",
@@ -91,7 +77,7 @@ build {
     execute_command = local.execute_command
   }
 
-  // Phase 2d: Variant-specific provisioning (dynamic based on variant variable)
+  // Phase 2c: Variant-specific provisioning (dynamic based on variant variable)
   provisioner "shell" {
     // Only run if variant is not "base" (skip for base boxes)
     only = var.variant != "base" ? ["virtualbox-iso.almalinux"] : []
