@@ -173,13 +173,13 @@ To add support for a new provider (e.g., VMware, Parallels):
    provisioner "shell" {
      only = ["source.vmware-iso.vm"]  // optional: provider-specific
      inline = [
-       "bash /usr/local/lib/k8s/scripts/providers/vmware/install_dependencies.sh",
-       "bash /usr/local/lib/k8s/scripts/providers/vmware/tools.sh",
+       "bash /usr/local/lib/scripts/providers/vmware/install_dependencies.sh",
+       "bash /usr/local/lib/scripts/providers/vmware/tools.sh",
      ]
      environment_vars = [
-       "LIB_DIR=/usr/local/lib/k8s",
-       "LIB_CORE_SH=/usr/local/lib/k8s/scripts/_common/lib-core.sh",
-       "LIB_OS_SH=/usr/local/lib/k8s/scripts/_common/lib-debian.sh", // or lib-rhel.sh
+       "LIB_DIR=/usr/local/lib/scripts",
+       "LIB_CORE_SH=/usr/local/lib/scripts/_common/lib-core.sh",
+       "LIB_OS_SH=/usr/local/lib/scripts/_common/lib-debian.sh", // or lib-rhel.sh
        ...
      ]
      execute_command = "sudo -S bash -c '{{ .Vars }} {{ .Path }}'"

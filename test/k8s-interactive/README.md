@@ -34,18 +34,18 @@ source /scripts/test-env.sh
 
 This will:
 - Set all required environment variables (LIB_DIR, LIB_CORE_SH, LIB_OS_SH, K8S_VERSION, etc.)
-- Install scripts to `/usr/local/lib/k8s/scripts/`
+- Install scripts to `/usr/local/lib/scripts/`
 - Display available scripts and commands
 
 ### Run scripts step-by-step
 
 ```bash
 # Run each script individually
-bash /usr/local/lib/k8s/scripts/variants/k8s-node/common/prepare.sh
-bash /usr/local/lib/k8s/scripts/variants/k8s-node/common/configure_kernel.sh
-bash /usr/local/lib/k8s/scripts/variants/k8s-node/debian/install_container_runtime.sh
-bash /usr/local/lib/k8s/scripts/variants/k8s-node/debian/install_kubernetes.sh
-bash /usr/local/lib/k8s/scripts/variants/k8s-node/common/configure_networking.sh
+bash /usr/local/lib/scripts/variants/k8s-node/common/prepare.sh
+bash /usr/local/lib/scripts/variants/k8s-node/common/configure_kernel.sh
+bash /usr/local/lib/scripts/variants/k8s-node/debian/install_container_runtime.sh
+bash /usr/local/lib/scripts/variants/k8s-node/debian/install_kubernetes.sh
+bash /usr/local/lib/scripts/variants/k8s-node/common/configure_networking.sh
 ```
 
 ### Verify after each step
@@ -72,20 +72,20 @@ kubectl version --client
 3. Re-run the modified script:
    ```bash
    # Copy updated script
-   cp /scripts/variants/k8s-node/common/prepare.sh /usr/local/lib/k8s/scripts/variants/k8s-node/common/
+   cp /scripts/variants/k8s-node/common/prepare.sh /usr/local/lib/scripts/variants/k8s-node/common/
 
    # Re-run it
-   bash /usr/local/lib/k8s/scripts/variants/k8s-node/common/prepare.sh
+   bash /usr/local/lib/scripts/variants/k8s-node/common/prepare.sh
    ```
 
 ### Run all scripts at once
 
 ```bash
-bash /usr/local/lib/k8s/scripts/variants/k8s-node/common/prepare.sh
-bash /usr/local/lib/k8s/scripts/variants/k8s-node/common/configure_kernel.sh
-bash /usr/local/lib/k8s/scripts/variants/k8s-node/debian/install_container_runtime.sh
-bash /usr/local/lib/k8s/scripts/variants/k8s-node/debian/install_kubernetes.sh
-bash /usr/local/lib/k8s/scripts/variants/k8s-node/common/configure_networking.sh
+bash /usr/local/lib/scripts/variants/k8s-node/common/prepare.sh
+bash /usr/local/lib/scripts/variants/k8s-node/common/configure_kernel.sh
+bash /usr/local/lib/scripts/variants/k8s-node/debian/install_container_runtime.sh
+bash /usr/local/lib/scripts/variants/k8s-node/debian/install_kubernetes.sh
+bash /usr/local/lib/scripts/variants/k8s-node/common/configure_networking.sh
 ```
 
 ### Clean up and restart
@@ -106,9 +106,9 @@ source /scripts/test-env.sh
 
 The `test-env.sh` script sets these variables (same as Packer):
 
-- `LIB_DIR=/usr/local/lib/k8s`
-- `LIB_CORE_SH=/usr/local/lib/k8s/scripts/_common/lib-core.sh`
-- `LIB_OS_SH=/usr/local/lib/k8s/scripts/_common/lib-debian.sh` (or `lib-rhel.sh`)
+- `LIB_DIR=/usr/local/lib/scripts`
+- `LIB_CORE_SH=/usr/local/lib/scripts/_common/lib-core.sh`
+- `LIB_OS_SH=/usr/local/lib/scripts/_common/lib-debian.sh` (or `lib-rhel.sh`)
 - `K8S_VERSION="1.28"`
 - `CONTAINER_RUNTIME="containerd"`
 - `CRIO_VERSION="1.28"`

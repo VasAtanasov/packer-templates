@@ -23,14 +23,14 @@ VAGRANT_VAGRANTFILE=Vagrantfile.test vagrant destroy -f
 
 ## What It Does
 - Installs `bats` in the VM
-- Installs modular libraries under `/usr/local/lib/k8s/scripts/_common/`:
+- Installs modular libraries under `/usr/local/lib/scripts/_common/`:
   - `lib-core.sh` (OS-agnostic)
   - `lib-debian.sh` (APT-based)
   - `lib-rhel.sh` (DNF-based)
 - Sets test environment variables:
   - `SCRIPTS_DIR=/scripts` - Location of provisioning scripts
-  - `LIB_CORE_SH=/usr/local/lib/k8s/scripts/_common/lib-core.sh`
-  - `LIB_OS_SH=/usr/local/lib/k8s/scripts/_common/lib-debian.sh` (or `lib-rhel.sh`)
+  - `LIB_CORE_SH=/usr/local/lib/scripts/_common/lib-core.sh`
+  - `LIB_OS_SH=/usr/local/lib/scripts/_common/lib-debian.sh` (or `lib-rhel.sh`)
   - `LIB_DIR=/usr/local/lib/k8s` - Library directory
 - Runs all tests under `tests/`
 

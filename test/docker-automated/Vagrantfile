@@ -22,27 +22,27 @@ Vagrant.configure("2") do |config|
     echo "=================================================="
 
     # Set environment variables (same as Packer)
-    export LIB_DIR=/usr/local/lib/k8s
-    export LIB_CORE_SH=/usr/local/lib/k8s/scripts/_common/lib-core.sh
-    export LIB_OS_SH=/usr/local/lib/k8s/scripts/_common/lib-debian.sh
+    export LIB_DIR=/usr/local/lib/scripts
+    export LIB_CORE_SH=/usr/local/lib/scripts/_common/lib-core.sh
+    export LIB_OS_SH=/usr/local/lib/scripts/_common/lib-debian.sh
     export VARIANT="docker-host"
     export DEBIAN_FRONTEND=noninteractive
 
     # Install scripts to persistent location
     echo "Installing scripts to ${LIB_DIR}..."
-    mkdir -p /usr/local/lib/k8s
-    cp -r /scripts /usr/local/lib/k8s/scripts
-    chmod -R 0755 /usr/local/lib/k8s/scripts
-    find /usr/local/lib/k8s/scripts -type f -name '*.sh' -exec chmod 0755 {} \\;
-    chown -R root:root /usr/local/lib/k8s
+    mkdir -p /usr/local/lib/scripts
+    cp -r /scripts /usr/local/lib/scripts
+    chmod -R 0755 /usr/local/lib/scripts
+    find /usr/local/lib/scripts -type f -name '*.sh' -exec chmod 0755 {} \\;
+    chown -R root:root /usr/local/lib/scripts
 
     echo ""
     echo "=== Phase 1: Install Docker ==="
-    bash /usr/local/lib/k8s/scripts/variants/docker-host/debian/install_docker.sh
+    bash /usr/local/lib/scripts/variants/docker-host/debian/install_docker.sh
 
     echo ""
     echo "=== Phase 2: Configure Docker ==="
-    bash /usr/local/lib/k8s/scripts/variants/docker-host/debian/configure_docker.sh
+    bash /usr/local/lib/scripts/variants/docker-host/debian/configure_docker.sh
 
     echo ""
     echo "=================================================="

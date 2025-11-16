@@ -31,16 +31,16 @@ Packer selects the appropriate OS-specific scripts at build time using a compute
 
 ## Environment Variables
 
-- `LIB_DIR=/usr/local/lib/k8s`
-- `LIB_CORE_SH=/usr/local/lib/k8s/scripts/_common/lib-core.sh`
-- `LIB_OS_SH=/usr/local/lib/k8s/scripts/_common/lib-debian.sh` (Debian) or `lib-rhel.sh` (RHEL)
+- `LIB_DIR=/usr/local/lib/scripts`
+- `LIB_CORE_SH=/usr/local/lib/scripts/_common/lib-core.sh`
+- `LIB_OS_SH=/usr/local/lib/scripts/_common/lib-debian.sh` (Debian) or `lib-rhel.sh` (RHEL)
 - `K8S_VERSION` (e.g., `1.28`)
 - `CONTAINER_RUNTIME` (`containerd` or `cri-o`)
 - `CRIO_VERSION` (e.g., `1.28`, when `CONTAINER_RUNTIME=cri-o`)
 
 ## Notes
 
-- Scripts are uploaded once to `/usr/local/lib/k8s/scripts/` and invoked from there to survive reboots/cleanup.
+- Scripts are uploaded once to `/usr/local/lib/scripts/` and invoked from there to survive reboots/cleanup.
 - All scripts are idempotent and source both `lib-core.sh` and the OS-specific library via `LIB_OS_SH`.
 
 ## Doc Changelog

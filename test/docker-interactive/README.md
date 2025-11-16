@@ -34,15 +34,15 @@ source /scripts/test-env.sh
 
 This will:
 - Set all required environment variables (LIB_DIR, LIB_CORE_SH, LIB_OS_SH, VARIANT, etc.)
-- Install scripts to `/usr/local/lib/k8s/scripts/`
+- Install scripts to `/usr/local/lib/scripts/`
 - Display available scripts and commands
 
 ### Run scripts step-by-step
 
 ```bash
 # Run each script individually
-bash /usr/local/lib/k8s/scripts/variants/docker-host/debian/install_docker.sh
-bash /usr/local/lib/k8s/scripts/variants/docker-host/debian/configure_docker.sh
+bash /usr/local/lib/scripts/variants/docker-host/debian/install_docker.sh
+bash /usr/local/lib/scripts/variants/docker-host/debian/configure_docker.sh
 ```
 
 ### Verify after each step
@@ -68,17 +68,17 @@ docker info | grep -E "(Storage Driver|Logging Driver)"
 3. Re-run the modified script:
    ```bash
    # Copy updated script
-   cp /scripts/variants/docker-host/debian/install_docker.sh /usr/local/lib/k8s/scripts/variants/docker-host/debian/
+   cp /scripts/variants/docker-host/debian/install_docker.sh /usr/local/lib/scripts/variants/docker-host/debian/
 
    # Re-run it
-   bash /usr/local/lib/k8s/scripts/variants/docker-host/debian/install_docker.sh
+   bash /usr/local/lib/scripts/variants/docker-host/debian/install_docker.sh
    ```
 
 ### Run all scripts at once
 
 ```bash
-bash /usr/local/lib/k8s/scripts/variants/docker-host/debian/install_docker.sh
-bash /usr/local/lib/k8s/scripts/variants/docker-host/debian/configure_docker.sh
+bash /usr/local/lib/scripts/variants/docker-host/debian/install_docker.sh
+bash /usr/local/lib/scripts/variants/docker-host/debian/configure_docker.sh
 ```
 
 ### Test Docker as non-root
@@ -114,9 +114,9 @@ source /scripts/test-env.sh
 
 The `test-env.sh` script sets these variables (same as Packer):
 
-- `LIB_DIR=/usr/local/lib/k8s`
-- `LIB_CORE_SH=/usr/local/lib/k8s/scripts/_common/lib-core.sh`
-- `LIB_OS_SH=/usr/local/lib/k8s/scripts/_common/lib-debian.sh` (or `lib-rhel.sh`)
+- `LIB_DIR=/usr/local/lib/scripts`
+- `LIB_CORE_SH=/usr/local/lib/scripts/_common/lib-core.sh`
+- `LIB_OS_SH=/usr/local/lib/scripts/_common/lib-debian.sh` (or `lib-rhel.sh`)
 - `VARIANT="docker-host"`
 - `DEBIAN_FRONTEND=noninteractive`
 

@@ -233,24 +233,24 @@ locals {
 
 - Phase 3a: Remove unnecessary packages (`debian/cleanup.sh`)
 - Phase 3b: Clear logs, temporary files, zero free space (`_common/minimize.sh`)
-- Final step: Remove build-only libraries directory (`/usr/local/lib/k8s/`)
+- Final step: Remove build-only libraries directory (`/usr/local/lib/scripts/`)
 
 **Persistent Scripts Provisioning Pattern (Optimized):**
 
 1. Upload entire `scripts/` tree to `/tmp/packer-scripts` (once, ephemeral)
-2. Copy entire tree to `/usr/local/lib/k8s/scripts/` (persistent, root-owned, survives reboots and cleanups)
-3. Run all phases referencing scripts from `/usr/local/lib/k8s/scripts/`
+2. Copy entire tree to `/usr/local/lib/scripts/` (persistent, root-owned, survives reboots and cleanups)
+3. Run all phases referencing scripts from `/usr/local/lib/scripts/`
     - Phase 1: `update_packages.sh` (may reboot - scripts survive)
     - Phase 2: `sshd.sh`, `vagrant.sh`, `systemd_debian.sh`, etc.
     - Phase 3a: `cleanup_debian.sh` (clears `/tmp` - scripts survive)
     - Phase 3b: `minimize.sh`
-4. Final cleanup removes entire `/usr/local/lib/k8s/` directory
+4. Final cleanup removes entire `/usr/local/lib/scripts/` directory
 
 **Environment variables for all provisioners:**
 
-- `LIB_DIR=/usr/local/lib/k8s`
-- `LIB_CORE_SH=/usr/local/lib/k8s/scripts/_common/lib-core.sh`
-- `LIB_OS_SH=/usr/local/lib/k8s/scripts/_common/lib-debian.sh` (or `lib-rhel.sh` per OS)
+- `LIB_DIR=/usr/local/lib/scripts`
+- `LIB_CORE_SH=/usr/local/lib/scripts/_common/lib-core.sh`
+- `LIB_OS_SH=/usr/local/lib/scripts/_common/lib-debian.sh` (or `lib-rhel.sh` per OS)
 
 **Key Benefits:**
 
@@ -281,7 +281,7 @@ Key function families:
 All provisioner scripts must source both libraries:
 `source "${LIB_CORE_SH}"` and `source "${LIB_OS_SH}"`
 
-**Note:** Libraries are installed under `/usr/local/lib/k8s/scripts/_common/` during the build. Packer passes both
+**Note:** Libraries are installed under `/usr/local/lib/scripts/_common/` during the build. Packer passes both
 `LIB_CORE_SH` and an OS‑specific `LIB_OS_SH` to each provisioner.
 
 Script rules in brief (see `packer_templates/scripts/AGENTS.md` for details):

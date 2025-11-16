@@ -17,9 +17,9 @@ echo -e "==================================================${RESET}"
 echo ""
 
 # Set environment variables (same as Packer)
-export LIB_DIR=/usr/local/lib/k8s
-export LIB_CORE_SH=/usr/local/lib/k8s/scripts/_common/lib-core.sh
-export LIB_OS_SH=/usr/local/lib/k8s/scripts/_common/lib-debian.sh
+export LIB_DIR=/usr/local/lib/scripts
+export LIB_CORE_SH=/usr/local/lib/scripts/_common/lib-core.sh
+export LIB_OS_SH=/usr/local/lib/scripts/_common/lib-debian.sh
 export OS_FAMILY=debian
 export K8S_VERSION="1.33"
 export CONTAINER_RUNTIME="containerd"
@@ -38,13 +38,13 @@ echo "  OS_FAMILY=$OS_FAMILY"
 echo ""
 
 # Install scripts to persistent location if not already done
-if [ ! -d "/usr/local/lib/k8s/scripts" ]; then
+if [ ! -d "/usr/local/lib/scripts" ]; then
     echo -e "${YELLOW}Installing scripts to ${LIB_DIR}...${RESET}"
-    mkdir -p /usr/local/lib/k8s
-    cp -r /scripts /usr/local/lib/k8s/scripts
-    chmod -R 0755 /usr/local/lib/k8s/scripts
-    find /usr/local/lib/k8s/scripts -type f -name '*.sh' -exec chmod 0755 {} \;
-    chown -R root:root /usr/local/lib/k8s
+    mkdir -p /usr/local/lib/scripts
+    cp -r /scripts /usr/local/lib/scripts
+    chmod -R 0755 /usr/local/lib/scripts
+    find /usr/local/lib/scripts -type f -name '*.sh' -exec chmod 0755 {} \;
+    chown -R root:root /usr/local/lib/scripts
     echo -e "${GREEN}✓ Scripts installed${RESET}"
 else
     echo -e "${GREEN}✓ Scripts already installed${RESET}"

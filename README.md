@@ -65,12 +65,12 @@ make debian-12-docker   # Docker host variant
 Provisioner strategy:
 
 - Upload entire `packer_templates/scripts/` tree to `/tmp/packer-scripts` (once, ephemeral)
-- Copy entire tree to `/usr/local/lib/k8s/scripts/` (persistent, survives reboots and cleanups)
-- All provisioners reference scripts from `/usr/local/lib/k8s/scripts/`
+- Copy entire tree to `/usr/local/lib/scripts/` (persistent, survives reboots and cleanups)
+- All provisioners reference scripts from `/usr/local/lib/scripts/`
 - Scripts source modular libraries via env vars:
-    - `LIB_CORE_SH=/usr/local/lib/k8s/scripts/_common/lib-core.sh`
-    - `LIB_OS_SH=/usr/local/lib/k8s/scripts/_common/lib-debian.sh` (or `lib-rhel.sh`)
-- Final cleanup removes entire `/usr/local/lib/k8s/` directory (no build helpers in final box)
+    - `LIB_CORE_SH=/usr/local/lib/scripts/_common/lib-core.sh`
+    - `LIB_OS_SH=/usr/local/lib/scripts/_common/lib-debian.sh` (or `lib-rhel.sh`)
+- Final cleanup removes entire `/usr/local/lib/scripts/` directory (no build helpers in final box)
 
 **Key benefit:** Scripts uploaded once and survive system reboots (Phase 1) and `/tmp` cleanup (Phase 3a)
 
@@ -92,7 +92,7 @@ Provisioner strategy:
 
 - Phase 3a: Remove unnecessary packages (build tools, docs, etc.)
 - Phase 3b: Clear logs, temporary files, zero free space for better compression
-- Final: Remove build-only helpers (`/usr/local/lib/k8s/`)
+- Final: Remove build-only helpers (`/usr/local/lib/scripts/`)
 
 ## Using Built Boxes
 

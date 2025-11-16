@@ -58,7 +58,7 @@ vagrant ssh
 sudo -i
 source /scripts/test-env.sh
 # Run scripts one by one
-bash /usr/local/lib/k8s/scripts/variants/k8s-node/common/prepare.sh
+bash /usr/local/lib/scripts/variants/k8s-node/common/prepare.sh
 ```
 
 ## Prerequisites
@@ -203,8 +203,8 @@ vagrant up
 ### Permission errors in VM
 ```bash
 # Inside VM
-sudo chown -R root:root /usr/local/lib/k8s
-sudo chmod -R 0755 /usr/local/lib/k8s/scripts
+sudo chown -R root:root /usr/local/lib/scripts
+sudo chmod -R 0755 /usr/local/lib/scripts
 ```
 
 ## Tips

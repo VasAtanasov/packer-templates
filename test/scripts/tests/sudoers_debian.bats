@@ -2,9 +2,9 @@
 
 setup() {
   export SCRIPTS_DIR="${SCRIPTS_DIR:-/scripts}"
-  export LIB_CORE_SH="${LIB_CORE_SH:-/usr/local/lib/k8s/scripts/_common/lib-core.sh}"
-  export LIB_OS_SH="${LIB_OS_SH:-/usr/local/lib/k8s/scripts/_common/lib-debian.sh}"
-  export LIB_DIR="${LIB_DIR:-/usr/local/lib/k8s}"
+  export LIB_CORE_SH="${LIB_CORE_SH:-/usr/local/lib/scripts/_common/lib-core.sh}"
+  export LIB_OS_SH="${LIB_OS_SH:-/usr/local/lib/scripts/_common/lib-debian.sh}"
+  export LIB_DIR="${LIB_DIR:-/usr/local/lib/scripts}"
 }
 
 @test "sudoers.sh applies settings (first run)" {

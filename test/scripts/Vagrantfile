@@ -13,15 +13,15 @@ Vagrant.configure("2") do |config|
     export DEBIAN_FRONTEND=noninteractive
     apt-get update -y -qq
     apt-get install -y -qq --no-install-recommends bats
-    install -d -m 0755 /usr/local/lib/k8s/scripts/_common
-    install -m 0644 /scripts/_common/lib-core.sh /usr/local/lib/k8s/scripts/_common/lib-core.sh
-    install -m 0644 /scripts/_common/lib-debian.sh /usr/local/lib/k8s/scripts/_common/lib-debian.sh
-    install -m 0644 /scripts/_common/lib-rhel.sh /usr/local/lib/k8s/scripts/_common/lib-rhel.sh
+    install -d -m 0755 /usr/local/lib/scripts/_common
+    install -m 0644 /scripts/_common/lib-core.sh /usr/local/lib/scripts/_common/lib-core.sh
+    install -m 0644 /scripts/_common/lib-debian.sh /usr/local/lib/scripts/_common/lib-debian.sh
+    install -m 0644 /scripts/_common/lib-rhel.sh /usr/local/lib/scripts/_common/lib-rhel.sh
 
     # Run BATS with test environment variables
     SCRIPTS_DIR=/scripts \
-    LIB_CORE_SH=/usr/local/lib/k8s/scripts/_common/lib-core.sh \
-    LIB_OS_SH=/usr/local/lib/k8s/scripts/_common/lib-debian.sh \
+    LIB_CORE_SH=/usr/local/lib/scripts/_common/lib-core.sh \
+    LIB_OS_SH=/usr/local/lib/scripts/_common/lib-debian.sh \
     LIB_DIR=/usr/local/lib/k8s \
     bats -r /vagrant/tests || exit 1
   SHELL
