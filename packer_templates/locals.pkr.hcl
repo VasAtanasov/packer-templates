@@ -9,10 +9,7 @@ locals {
   // Provider Detection
   // -----------------------------------------------------------------------------
   // Extract provider type from enabled sources (e.g., "virtualbox" from "source.virtualbox-iso.vm")
-  active_providers = [
-    for source in var.sources_enabled :
-    split(".", source)[1]  // Extract provider from "source.PROVIDER-TYPE.name"
-  ]
+  active_providers = [for source in var.sources_enabled : split(".", source)[1]]
 
   // Determine if each provider is enabled
   is_virtualbox_enabled = contains(local.active_providers, "virtualbox-iso")
@@ -44,12 +41,12 @@ locals {
   // -----------------------------------------------------------------------------
   // Library Paths (persistent during build)
   // -----------------------------------------------------------------------------
-  lib_core_sh = "/usr/local/lib/k8s/scripts/_common/lib-core.sh"
+  lib_core_sh = "/usr/local/lib/scripts/_common/lib-core.sh"
 
   lib_os_sh = {
-    debian    = "/usr/local/lib/k8s/scripts/_common/lib-debian.sh"
-    ubuntu    = "/usr/local/lib/k8s/scripts/_common/lib-debian.sh"
-    almalinux = "/usr/local/lib/k8s/scripts/_common/lib-rhel.sh"
+    debian    = "/usr/local/lib/scripts/_common/lib-debian.sh"
+    ubuntu    = "/usr/local/lib/scripts/_common/lib-debian.sh"
+    almalinux = "/usr/local/lib/scripts/_common/lib-rhel.sh"
   }
 
   // -----------------------------------------------------------------------------
@@ -57,50 +54,24 @@ locals {
   // -----------------------------------------------------------------------------
 
   // Common scripts (OS-agnostic)
-  common_scripts = {
-    update_packages = "_common/update_packages.sh"
-    sshd            = "_common/sshd.sh"
-    vagrant         = "_common/vagrant.sh"
-    minimize        = "_common/minimize.sh"
-  }
+  common_scripts = [
+    "${path.root}/scripts/_common/vagrant.sh",
+    "${path.root}/scripts/_common/sshd.sh",
+  ]
 
   // OS-specific scripts
   os_scripts = {
-    debian = {
-      systemd    = "debian/systemd.sh"
-      sudoers    = "debian/sudoers.sh"
-      networking = "debian/networking.sh"
-      cleanup    = "debian/cleanup.sh"
-    }
-    rhel = {
-      systemd    = "rhel/systemd.sh"
-      sudoers    = "rhel/sudoers.sh"
-      networking = "rhel/networking.sh"
-      cleanup    = "rhel/cleanup.sh"
-    }
+    debian = [
+      "${path.root}/scripts/debian/systemd.sh",
+      "${path.root}/scripts/debian/sudoers.sh",
+      "${path.root}/scripts/debian/networking.sh"
+    ]
   }
 
-  // -----------------------------------------------------------------------------
-  // Provider-specific Scripts (Guest Tools/Additions)
-  // -----------------------------------------------------------------------------
-  provider_guest_tools_scripts = {
-    virtualbox = "providers/virtualbox/guest_tools_virtualbox.sh"
-    vmware     = "providers/vmware/guest_tools_vmware.sh"      # Future
-    qemu       = null                                           # QEMU typically doesn't need guest tools
+  cleanup_scripts = {
+    debian = ["${path.root}/scripts/debian/cleanup.sh"]
+    rhel   = ["${path.root}/scripts/rhel/cleanup.sh"]
   }
-
-  // Provider-specific guest tools mode variables
-  provider_guest_tools_modes = {
-    virtualbox = var.vbox_guest_additions_mode
-    vmware     = null  # Future: var.vmware_tools_mode
-    qemu       = null
-  }
-
-  // Get list of enabled providers that need guest tools installation
-  providers_needing_tools = [
-    for provider, script in local.provider_guest_tools_scripts :
-    provider if script != null && contains(local.active_providers, "${provider}-iso")
-  ]
 
   // -----------------------------------------------------------------------------
   // Variant Scripts (Dynamic Selection)
@@ -130,7 +101,35 @@ locals {
   // -----------------------------------------------------------------------------
   // Provisioner Execute Command
   // -----------------------------------------------------------------------------
-  execute_command = "echo 'vagrant' | {{ .Vars }} sudo -S -E sh -eux '{{ .Path }}'"
+  execute_command = "echo 'vagrant' | {{ .Vars }} sudo -S -E bash -eux '{{ .Path }}'"
+
+  // -----------------------------------------------------------------------------
+  // Provider Guest Tools Configuration (Provider-Agnostic)
+  // -----------------------------------------------------------------------------
+  provider_guest_tools = {
+    virtualbox = {
+      script   = "${path.root}/scripts/providers/virtualbox/guest_tools_virtualbox.sh"
+      mode_var = var.vbox_guest_additions_mode
+      enabled  = local.is_virtualbox_enabled
+    }
+    vmware = {
+      script   = "${path.root}/scripts/providers/vmware/guest_tools_vmware.sh" # Future
+      mode_var = null                                                          # Future: var.vmware_tools_mode
+      enabled  = local.is_vmware_enabled
+    }
+  }
+
+  // Get list of providers that need guest tools installed
+  providers_with_tools = [
+    for provider, config in local.provider_guest_tools :
+    provider if config.script != null && config.enabled && (config.mode_var == null || config.mode_var != "disable")
+  ]
+
+  // Build list of guest tool scripts to run
+  guest_tools_scripts = [
+    for provider in local.providers_with_tools :
+    local.provider_guest_tools[provider].script
+  ]
 
   // -----------------------------------------------------------------------------
   // VirtualBox-specific Locals
@@ -146,7 +145,7 @@ locals {
       ["modifyvm", "{{.Name}}", "--mouse", "usb"],
       ["modifyvm", "{{.Name}}", "--keyboard", "usb"],
       ["storagectl", "{{.Name}}", "--name", "IDE Controller", "--remove"],
-    ] : [
+      ] : [
       ["modifyvm", "{{.Name}}", "--chipset", "ich9"],
       ["modifyvm", "{{.Name}}", "--audio-enabled", "off"],
       ["modifyvm", "{{.Name}}", "--nat-localhostreachable1", "on"],
@@ -154,7 +153,7 @@ locals {
     ]
   ) : var.vboxmanage
 
-  vbox_firmware            = var.os_arch == "aarch64" ? "efi" : "bios"
+  vbox_firmware             = var.os_arch == "aarch64" ? "efi" : "bios"
   vbox_hard_drive_interface = var.os_arch == "aarch64" ? "virtio" : "sata"
   vbox_iso_interface        = var.os_arch == "aarch64" ? "virtio" : "sata"
 }

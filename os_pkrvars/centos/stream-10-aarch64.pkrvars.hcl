@@ -4,7 +4,6 @@ os_arch                 = "aarch64"
 iso_url                 = "https://mirror.stream.centos.org/10-stream/BaseOS/aarch64/iso/CentOS-Stream-10-latest-aarch64-boot.iso"
 iso_checksum            = "file:https://mirror.stream.centos.org/10-stream/BaseOS/aarch64/iso/CentOS-Stream-10-latest-aarch64-boot.iso.SHA256SUM"
 vbox_guest_os_type      = "Oracle9_arm64"
-vmware_guest_os_type    = "arm-rhel9-64"
 boot_command = [
   "<wait>",
   "<up>e<wait>",

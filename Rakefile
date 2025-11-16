@@ -71,7 +71,7 @@ desc 'Validate all Packer templates for current provider/OS'
 task :validate do
   puts "#{GREEN}Validating #{provider}/#{target_os} templates...#{RESET}\n\n"
 
-  template_dir = "#{TEMPLATE_DIR_BASE}/#{provider}/#{target_os}"
+  template_dir = "#{TEMPLATE_DIR_BASE}"
   failed = []
 
   pkrvars_files.each do |var_file|
@@ -99,7 +99,7 @@ task :validate_all do
   failed = []
 
   os_list.each do |os|
-    template_dir = File.join(TEMPLATE_DIR_BASE, provider, os)
+    template_dir = File.join(TEMPLATE_DIR_BASE)
     if Dir.exist?(template_dir)
       puts "\n#{GREEN}=== Validating #{os} ===#{RESET}\n\n"
       success = system({ 'TARGET_OS' => os }, 'rake validate')

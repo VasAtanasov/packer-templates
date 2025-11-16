@@ -38,9 +38,7 @@ build {
   // ===========================================================================
   // Update packages and disable automatic updates (may reboot)
   provisioner "shell" {
-    inline = [
-      "bash /usr/local/lib/scripts/${local.common_scripts.update_packages}",
-    ]
+    scripts = ["${path.root}/scripts/_common/update_packages.sh"]
     environment_vars = [
       "LIB_DIR=/usr/local/lib/scripts",
       "LIB_CORE_SH=${local.lib_core_sh}",
@@ -48,18 +46,48 @@ build {
     ]
     execute_command   = local.execute_command
     expect_disconnect = true // May reboot
+    pause_before      = "10s"
+    valid_exit_codes  = [0, 143]
+  }
+
+  provisioner "shell" {
+    inline = [
+      "echo 'Waiting after reboot'"
+    ]
+    pause_after = "10s"
   }
 
   // ===========================================================================
-  // Phase 2a: Provider Integration - Guest Tools/Additions (VirtualBox)
+  // Phase 2a: Base OS Configuration
   // ===========================================================================
   provisioner "shell" {
-    // Only run for VirtualBox when Guest Additions are enabled
-    only = local.is_virtualbox_enabled && var.vbox_guest_additions_mode != "disable" ? ["virtualbox-iso.vm"] : []
-
-    inline = [
-      "bash /usr/local/lib/scripts/${local.provider_guest_tools_scripts["virtualbox"]}",
+    scripts = local.common_scripts
+    environment_vars = [
+      "LIB_DIR=/usr/local/lib/scripts",
+      "LIB_CORE_SH=${local.lib_core_sh}",
+      "LIB_OS_SH=${local.lib_os_sh[var.os_name]}",
     ]
+    execute_command   = local.execute_command
+    expect_disconnect = true
+    pause_before      = "10s"
+  }
+
+  provisioner "shell" {
+    inline = [
+      "echo 'Waiting after reboot'"
+    ]
+    pause_after = "10s"
+  }
+
+  // ===========================================================================
+  // Phase 2b: Provider Integration - Guest Tools (Provider-Agnostic)
+  // ===========================================================================
+  provisioner "shell" {
+    // Only run if at least one provider needs guest tools
+    // Automatically detects and installs tools for all enabled providers
+    only = length(local.providers_with_tools) > 0 ? var.sources_enabled : []
+
+    scripts = local.guest_tools_scripts
     environment_vars = [
       "LIB_DIR=/usr/local/lib/scripts",
       "LIB_CORE_SH=${local.lib_core_sh}",
@@ -67,35 +95,38 @@ build {
       "HOME_DIR=/home/vagrant",
     ]
     execute_command   = local.execute_command
-    expect_disconnect = true // May reboot multiple times
+    expect_disconnect = true // May reboot after guest tools installation
+    pause_before      = "10s"
+  }
+
+  provisioner "shell" {
+    only = length(local.providers_with_tools) > 0 ? var.sources_enabled : []
+
+    inline = [
+      "echo 'Waiting after provider guest tools installation'"
+    ]
+    pause_after = "10s"
   }
 
   // ===========================================================================
-  // Phase 2b: Base OS Configuration
+  // Phase 2c: OS Specific Configuration
   // ===========================================================================
   provisioner "shell" {
-    inline = concat(
-      [
-        "bash /usr/local/lib/scripts/${local.common_scripts.sshd}",
-        "bash /usr/local/lib/scripts/${local.common_scripts.vagrant}",
-      ],
-      [
-        "bash /usr/local/lib/scripts/${local.os_scripts[local.os_family].systemd}",
-        "bash /usr/local/lib/scripts/${local.os_scripts[local.os_family].sudoers}",
-        "bash /usr/local/lib/scripts/${local.os_scripts[local.os_family].networking}",
-      ]
-    )
+    scripts = local.os_scripts[local.os_family]
     environment_vars = [
       "LIB_DIR=/usr/local/lib/scripts",
       "LIB_CORE_SH=${local.lib_core_sh}",
       "LIB_OS_SH=${local.lib_os_sh[var.os_name]}",
     ]
-    execute_command = local.execute_command
+    execute_command   = local.execute_command
+    expect_disconnect = true
+    pause_before      = "10s"
   }
 
   // ===========================================================================
-  // Phase 2c: Variant-specific Provisioning
+  // Phase 2d: Variant-specific Provisioning
   // ===========================================================================
+  /*
   provisioner "shell" {
     // Only run if variant is not "base"
     // Note: This is provider-agnostic - runs for all enabled sources
@@ -123,35 +154,36 @@ build {
 
     execute_command = local.execute_command
   }
+  */
 
   // ===========================================================================
   // Phase 3a: Cleanup
   // ===========================================================================
   provisioner "shell" {
-    inline = [
-      "bash /usr/local/lib/scripts/${local.os_scripts[local.os_family].cleanup}",
-    ]
+    scripts = local.cleanup_scripts[local.os_family]
     environment_vars = [
       "LIB_DIR=/usr/local/lib/scripts",
       "LIB_CORE_SH=${local.lib_core_sh}",
       "LIB_OS_SH=${local.lib_os_sh[var.os_name]}",
     ]
-    execute_command = local.execute_command
+    expect_disconnect = true
+    pause_after       = "10s"
+    execute_command   = local.execute_command
   }
 
   // ===========================================================================
   // Phase 3b: Minimize
   // ===========================================================================
   provisioner "shell" {
-    inline = [
-      "bash /usr/local/lib/scripts/${local.common_scripts.minimize}",
-    ]
+    scripts = ["${path.root}/scripts/_common/minimize.sh"]
     environment_vars = [
       "LIB_DIR=/usr/local/lib/scripts",
       "LIB_CORE_SH=${local.lib_core_sh}",
       "LIB_OS_SH=${local.lib_os_sh[var.os_name]}",
     ]
-    execute_command = local.execute_command
+    expect_disconnect = true
+    pause_after       = "10s"
+    execute_command   = local.execute_command
   }
 
   // ===========================================================================

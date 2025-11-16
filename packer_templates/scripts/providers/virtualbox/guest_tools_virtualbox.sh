@@ -21,29 +21,6 @@ lib::strict
 lib::setup_traps
 lib::require_root
 
-# ==============================================================================
-# Step 1: Install Build Dependencies
-# ==============================================================================
-install_build_dependencies() {
-    lib::subheader "Installing VirtualBox build dependencies"
-
-    # Use shared library helper for kernel build dependencies
-    lib::install_kernel_build_deps
-
-    # Check if reboot is required after package installation
-    if lib::check_reboot_required; then
-        lib::warn "Reboot required after installing kernel packages"
-        lib::log "Initiating reboot..."
-        shutdown -r now
-        sleep 60
-    else
-        lib::success "VirtualBox build dependencies installed (no reboot needed)"
-    fi
-}
-
-# ==============================================================================
-# Step 2: Install Guest Additions
-# ==============================================================================
 install_guest_additions() {
     lib::subheader "Installing VirtualBox Guest Additions"
 
@@ -120,21 +97,8 @@ install_guest_additions() {
     rm -rf "${mount_point}"
     rm -f "${home_dir}"/*.iso
     rm -rf /var/log/vboxadd*
-
-    # Check if reboot is required
-    if lib::check_reboot_required; then
-        lib::warn "Reboot required after Guest Additions installation"
-        lib::log "Initiating reboot..."
-        shutdown -r now
-        sleep 60
-    else
-        lib::success "Guest Additions installation complete (no reboot needed)"
-    fi
 }
 
-# ==============================================================================
-# Step 3: Remove Build Dependencies
-# ==============================================================================
 remove_build_dependencies() {
     lib::subheader "Removing VirtualBox build dependencies"
 
@@ -154,7 +118,9 @@ main() {
     lib::header "VirtualBox Guest Additions Installation (Consolidated)"
 
     # Step 1: Install build dependencies
-    install_build_dependencies
+    lib::subheader "Installing VirtualBox build dependencies"
+    # Use shared library helper for kernel build dependencies
+    lib::install_kernel_build_deps
 
     # Step 2: Install Guest Additions
     install_guest_additions
@@ -162,7 +128,14 @@ main() {
     # Step 3: Remove build dependencies (cleanup)
     remove_build_dependencies
 
-    lib::success "VirtualBox Guest Additions installation complete"
+   if lib::check_reboot_required; then
+        lib::warn "Reboot required after installing kernel packages"
+        lib::log "Initiating reboot..."
+        shutdown -r now
+        sleep 60
+    else
+        lib::success "VirtualBox build dependencies installed (no reboot needed)"
+    fi
 }
 
 main "$@"
