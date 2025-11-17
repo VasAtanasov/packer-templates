@@ -70,6 +70,12 @@ case "${CONTAINER_RUNTIME}" in
     lib::verify_commands crio
     lib::verify_services crio
     ;;
+  docker)
+    lib::log "Verifying Docker + cri-dockerd..."
+    lib::verify_commands docker
+    lib::verify_services docker || true
+    lib::verify_services cri-docker.service || true
+    ;;
 esac
 
 lib::success "Kubernetes variant cleanup complete"

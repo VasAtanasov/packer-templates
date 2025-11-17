@@ -28,7 +28,7 @@ variants/k8s-node/
 
 - Debian family: Debian 12, Debian 13 (x86_64, aarch64)
 - Ubuntu family: Planned
-- RHEL family (RHEL/AlmaLinux/Rocky): Implemented (containerd runtime)
+- RHEL family (RHEL/AlmaLinux/Rocky): Implemented (containerd, docker via cri-dockerd)
 
 Packer selects the appropriate OS-specific scripts at build time using a computed `os_family` derived from `os_name`.
 

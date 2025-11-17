@@ -49,7 +49,11 @@ case "${CONTAINER_RUNTIME}" in
     lib::verify_commands crio || lib::warn "crio not found"
     lib::verify_services crio || true
     ;;
+  docker)
+    lib::verify_commands docker || lib::warn "docker not found"
+    lib::verify_services docker || true
+    lib::verify_services cri-docker.service || true
+    ;;
 esac
 
 lib::success "Kubernetes variant cleanup complete (RHEL family)"
-

@@ -296,8 +296,8 @@ variable "container_runtime" {
   type    = string
   default = "containerd"
   validation {
-    condition     = contains(["containerd", "cri-o"], var.container_runtime)
-    error_message = "The container_runtime must be 'containerd' or 'cri-o'."
+    condition     = contains(["containerd", "cri-o", "docker"], var.container_runtime)
+    error_message = "The container_runtime must be 'containerd', 'cri-o', or 'docker'."
   }
   description = "Container runtime: containerd or cri-o"
 }

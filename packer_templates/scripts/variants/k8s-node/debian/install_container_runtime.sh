@@ -83,6 +83,58 @@ install_crio() {
     lib::success "CRI-O installed and configured"
 }
 
+install_docker_runtime() {
+    lib::header "Installing Docker Engine + cri-dockerd (Debian/Ubuntu)"
+
+    export DEBIAN_FRONTEND=noninteractive
+
+    lib::ensure_apt_updated
+    lib::ensure_packages ca-certificates curl gnupg lsb-release
+
+    # Docker CE APT repository
+    lib::subheader "Configuring Docker CE repository"
+    local dk_key="/etc/apt/keyrings/docker.gpg"
+    lib::ensure_directory "/etc/apt/keyrings"
+    if [ ! -f "$dk_key" ]; then
+        curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o "$dk_key"
+        chmod a+r "$dk_key"
+    fi
+    local arch codename
+    arch="$(dpkg --print-architecture)"
+    codename="$(. /etc/os-release; echo "$VERSION_CODENAME")"
+    lib::ensure_apt_source_file \
+        "/etc/apt/sources.list.d/docker.list" \
+        "deb [arch=${arch} signed-by=${dk_key}] https://download.docker.com/linux/debian ${codename} stable"
+
+    # cri-dockerd APT repository (pkgs.k8s.io)
+    lib::subheader "Configuring cri-dockerd repository"
+    local cri_key="/etc/apt/keyrings/cri-dockerd-apt-keyring.gpg"
+    lib::ensure_apt_key_from_url \
+        "https://pkgs.k8s.io/addons:/cri-dockerd:/stable/deb/Release.key" \
+        "$cri_key"
+    lib::ensure_apt_source_file \
+        "/etc/apt/sources.list.d/cri-dockerd.list" \
+        "deb [signed-by=${cri_key}] https://pkgs.k8s.io/addons:/cri-dockerd:/stable/deb/ /"
+
+    lib::ensure_apt_updated
+
+    # Install Docker Engine and cri-dockerd
+    lib::ensure_packages docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin cri-dockerd
+
+    # Enable Docker and cri-dockerd
+    lib::ensure_service docker
+    lib::ensure_service cri-docker.socket
+    lib::ensure_service cri-docker.service
+
+    # Configure kubelet to use cri-dockerd
+    lib::ensure_line_in_file 'KUBELET_EXTRA_ARGS=--container-runtime=remote --container-runtime-endpoint=unix:///var/run/cri-dockerd.sock' \
+        "/etc/default/kubelet"
+    systemctl daemon-reload || true
+    systemctl restart kubelet || true
+
+    lib::success "Docker runtime installed and configured for Kubernetes via cri-dockerd"
+}
+
 main() {
     lib::header "Installing container runtime"
 
@@ -96,6 +148,9 @@ main() {
             ;;
         cri-o|crio)
             install_crio
+            ;;
+        docker)
+            install_docker_runtime
             ;;
         *)
             lib::error "Unknown container runtime: $runtime"
