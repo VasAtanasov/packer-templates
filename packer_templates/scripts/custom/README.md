@@ -1,108 +1,135 @@
+---
+title: Custom Scripts (Extensibility)
+version: 1.2.0
+status: Active
+scope: Custom script extension point for provisioning
+---
+
 # Custom Scripts Extension Point
 
-This directory provides an extension mechanism for adding custom scripts to your Packer builds without modifying the core template files.
+This directory provides an extension mechanism to add custom provisioning steps without modifying core templates.
+Custom scripts are discovered automatically per OS family and executed during the main provisioning phase.
 
 ## How It Works
 
-- Place custom shell scripts in the OS-specific subdirectory (`debian/` or `rhel/`)
-- Scripts are automatically discovered and executed during provisioning
-- Scripts run **after** variant provisioning but **before** base OS cleanup
+- Primary location: `packer_templates/scripts/custom/${os_family}/` (e.g., `debian/`, `rhel/`).
+- Optional scoped locations (higher precedence):
+  - Variant: `packer_templates/scripts/custom/${os_family}/${variant}`
+  - Provider: `packer_templates/scripts/custom/${os_family}/${provider}` (e.g., `virtualbox`, `vmware`, `qemu`)
+  - Precedence order: variant → provider → OS family
+- Only files matching `??-*.sh` (two‑digit prefix) are executed, in lexicographic order.
+- Scripts run after variant steps and before base cleanup.
+  - Reference: packer_templates/locals.pkr.hcl:114–117, 120–145.
 
 ## Execution Order
 
-```
 1. OS-specific configuration (systemd, sudoers, networking)
 2. Variant scripts (k8s-node, docker-host, etc.)
-3. → Custom scripts (YOUR EXTENSIONS) ←
+3. Custom scripts (this extension point)
 4. Base OS cleanup
-5. Minimization
+5. Final minimization
+
+## Available Context
+
+- Libraries: `LIB_CORE_SH`, `LIB_OS_SH` (source both)
+- Variant: `VARIANT` (always available)
+- Provider: `PACKER_BUILDER_TYPE` (e.g., `virtualbox-iso`, `vmware-iso`)
+- K8s variant only: `K8S_VERSION`, `CONTAINER_RUNTIME`, `CRIO_VERSION`
+
+## Naming and Ordering
+
+- Use zero‑padded numeric prefixes to control order: `01-…`, `02-…`, `10-…`
+- Keep names purpose‑driven, e.g., `20-monitoring.sh`, `30-harden-sshd.sh`
+- Only files matching `??-*.sh` are executed; non‑matching files are ignored by discovery
+
+## Script Contract
+
+- Shebang and safety: `#!/usr/bin/env bash` and `set -o pipefail`
+- Source libraries: `source "${LIB_CORE_SH}"` and `source "${LIB_OS_SH}"`
+- Enable strict mode and traps: `lib::strict`; `lib::setup_traps`
+- Require root: `lib::require_root`
+- Idempotent operations only; safe to re-run
+- Prefer helpers (APT/DNF, files, services) over raw commands
+
+## Provider/Variant Gating
+
+- Gate by variant with `VARIANT` to avoid running on unintended builds
+- Gate by provider using `PACKER_BUILDER_TYPE` when provider specifics matter
+
+Example gating snippet:
+
+```bash
+case "${VARIANT:-base}" in
+  k8s-node|docker-host) ;;  # allowed
+  *) echo "Skipping for variant=${VARIANT:-base}"; exit 0 ;;
+esac
+
+case "${PACKER_BUILDER_TYPE:-unknown}" in
+  virtualbox-iso|virtualbox-ovf) ;;  # supported
+  *) echo "Skipping for builder=${PACKER_BUILDER_TYPE:-unknown}"; exit 0 ;;
+esac
 ```
 
-## Script Naming Convention
+## Reboots and Long Operations
 
-Use numeric prefixes to control execution order:
+- Avoid reboots inside custom scripts. If unavoidable, ensure:
+  - All preceding steps are idempotent
+  - Post‑reboot logic is safe to re-run or skip when complete
+- Use `lib::retry` for transient downloads/network calls
 
-```
-debian/
-  01-company-monitoring.sh
-  02-security-hardening.sh
-  03-custom-packages.sh
-```
+## Files, Paths, and Cleanup
 
-Scripts are sorted alphabetically, so `01-` runs before `02-`, etc.
+- Place temporary files in `/var/tmp` if needed after provisioning; `/tmp` may be cleared by minimization
+- Write persistent config under standard locations (e.g., `/etc/...`, `/usr/local/bin`)
+- Remember `/usr/local/lib/scripts` is removed at the end of the build
 
-## Script Requirements
+## Logging and Diagnostics
 
-Your custom scripts must follow these conventions:
+- Use `lib::header`, `lib::subheader`, `lib::log`, `lib::warn`, `lib::error`
+- Verify outcomes with `lib::verify_commands`, `lib::verify_services`, `lib::verify_files`
 
-### 1. Source the Libraries
+## Security and Integrity
+
+- Do not hardcode secrets
+- Verify downloads with checksums (use `lib::ensure_downloaded`)
+
+## Line Endings and Permissions
+
+- Ensure LF line endings; CRLF endings are normalized to LF during script staging
+- Scripts are made executable during staging; keep the executable bit in VCS for clarity
+
+## Minimal Example
+
 ```bash
 #!/usr/bin/env bash
+set -o pipefail
 source "${LIB_CORE_SH}"
 source "${LIB_OS_SH}"
-```
-
-### 2. Use Library Functions
-```bash
-lib::header "Custom Company Setup"
-lib::ensure_package "monitoring-agent"
-lib::ensure_service "monitoring-agent" started enabled
-lib::success "Custom setup complete"
-```
-
-### 3. Be Idempotent
-Scripts should be safe to run multiple times without causing errors.
-
-### 4. Handle Errors
-Use `set -euo pipefail` or `lib::strict` for proper error handling.
-
-## Example Custom Script
-
-```bash
-#!/usr/bin/env bash
-# 01-company-setup.sh
-
-source "${LIB_CORE_SH}"
-source "${LIB_OS_SH}"
-
 lib::strict
 lib::setup_traps
 lib::require_root
 
-lib::header "Installing Company Tools"
+lib::header "Custom Provisioning: Monitoring Agent"
 
-# Install company-specific packages
-lib::ensure_packages \
-  company-monitoring-agent \
-  company-security-scanner
+# Optional gating
+case "${VARIANT:-base}" in
+  k8s-node|docker-host) ;; else
+  *) lib::log "Skipping for variant=${VARIANT:-base}"; exit 0 ;;
+esac
 
-# Configure monitoring
-lib::ensure_file "/etc/monitoring/config.yml" \
-  "server: monitoring.company.com" \
-  root:root 0644
+lib::subheader "Install prerequisites"
+lib::ensure_packages curl jq || exit 1
 
-# Enable services
-lib::ensure_service "monitoring-agent" started enabled
+lib::subheader "Configure service"
+lib::ensure_line_in_file "ENABLE_MONITORING=yes" "/etc/default/myagent"
+lib::ensure_service "myagent.service" || true
 
-lib::success "Company tools installed successfully"
+lib::subheader "Verify"
+lib::verify_commands curl jq
+lib::verify_services myagent.service || true
+
+lib::success "Custom provisioning complete"
 ```
-
-## Environment Variables Available
-
-All custom scripts have access to:
-
-- `LIB_DIR` - Library directory path
-- `LIB_CORE_SH` - Core library path
-- `LIB_OS_SH` - OS-specific library path
-- `VARIANT` - Current variant (base, k8s-node, docker-host)
-- K8s-specific (if variant=k8s-node):
-  - `K8S_VERSION`
-  - `CONTAINER_RUNTIME`
-  - `CRIO_VERSION`
-
-## Git Configuration
-
-By default, custom scripts are **ignored by git** so you can keep them private or per-environment. If you want to commit custom scripts to your repository, modify `.gitignore` accordingly.
 
 ## Testing Your Custom Scripts
 
@@ -111,12 +138,17 @@ By default, custom scripts are **ignored by git** so you can keep them private o
 3. Build: `make build TEMPLATE=debian/12-x86_64.pkrvars.hcl`
 4. Verify: SSH into the box and check your customizations
 
-## Cleanup
-
-If your custom scripts install temporary build tools, they should clean up after themselves. However, the base OS cleanup will also remove common build artifacts.
-
 ## See Also
 
-- `packer_templates/scripts/_common/lib-core.sh` - Available helper functions
-- `packer_templates/scripts/_common/lib-debian.sh` - Debian-specific helpers
-- `AGENTS.md` - Full provisioning script guidelines
+- `../../scripts/_common/lib-core.sh` – shared helpers
+- `../../scripts/_common/lib-debian.sh` – Debian/Ubuntu helpers
+- `../AGENTS.md` – provisioning script rules and skeletons
+- `../../AGENTS.md` – repo‑wide guidance and documentation standard
+
+## Doc Changelog
+
+| Version | Date       | Changes                                                     |
+|---------|------------|-------------------------------------------------------------|
+| 1.2.0   | 2025-11-17 | Add variant/provider scoping, strict file pattern (??-*.sh), provider gating guidance, CRLF normalization note. |
+| 1.1.0   | 2025-11-17 | Added Best Practices, header metadata, and changelog block. |
+| 1.0.0   | 2025-11-13 | Initial README for custom scripts extension.               |

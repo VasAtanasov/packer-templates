@@ -1,6 +1,6 @@
 ---
 title: AGENTS (Root Guidance)
-version: 3.1.0
+version: 3.2.1
 status: Active
 scope: repo-wide
 ---
@@ -323,7 +323,12 @@ Script rules in brief (see `packer_templates/scripts/AGENTS.md` for details):
 
 The project provides an extension mechanism for adding custom provisioning scripts without modifying core template files.
 
-**Location**: `packer_templates/scripts/custom/${os_family}/`
+**Location**:
+- Primary: `packer_templates/scripts/custom/${os_family}/`
+- Optional scoped directories (higher precedence):
+  - Variant: `packer_templates/scripts/custom/${os_family}/${variant}`
+  - Provider: `packer_templates/scripts/custom/${os_family}/${provider}` (e.g., `virtualbox`, `vmware`, `qemu`)
+  - Precedence order: variant → provider → OS family
 
 **Execution Order**: Custom scripts run in Phase 3, after variant provisioning and before base OS cleanup:
 1. OS-specific configuration
@@ -332,8 +337,8 @@ The project provides an extension mechanism for adding custom provisioning scrip
 4. Base OS cleanup
 
 **Script Requirements**:
-- Place scripts in OS-specific subdirectory (`debian/` or `rhel/`)
-- Use numeric prefixes to control execution order (e.g., `01-monitoring.sh`, `02-security.sh`)
+- Place scripts in OS-specific subdirectory (`debian/` or `rhel/`) or in optional variant/provider subdirectories
+- Only files matching `??-*.sh` are executed (two-digit prefix + hyphen). Use zero-padded numeric prefixes to set order
 - Scripts are sorted alphabetically and executed in order
 - Must source both libraries: `source "${LIB_CORE_SH}"` and `source "${LIB_OS_SH}"`
 - Use library functions for idempotent operations
@@ -342,6 +347,7 @@ The project provides an extension mechanism for adding custom provisioning scrip
 **Environment Variables Available**:
 - All standard variables: `LIB_DIR`, `LIB_CORE_SH`, `LIB_OS_SH`
 - `VARIANT` - Current variant (base, k8s-node, docker-host)
+- Provider: `PACKER_BUILDER_TYPE` (e.g., `virtualbox-iso`, `vmware-iso`)
 - K8s-specific (if variant=k8s-node): `K8S_VERSION`, `CONTAINER_RUNTIME`, `CRIO_VERSION`
 
 **Git Configuration**: Custom scripts are ignored by default (`.gitignore`) so they can remain private or per-environment.
@@ -594,6 +600,8 @@ make validate PROVIDER=vmware TARGET_OS=ubuntu  # Future: validate VMware Ubuntu
 
 | Version | Date       | Changes                                                                                                                                                                                                 |
 |---------|------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 3.2.1   | 2025-11-17 | Adjusted: Provider gating relies on PACKER_BUILDER_TYPE for multi-source builds; clarified custom scripts scoping across providers.                                           |
+| 3.2.0   | 2025-11-17 | Added: Custom scripts scoping (variant/provider precedence), strict file gating (??-*.sh), CRLF→LF normalization during staging; updated docs accordingly.                      |
 | 3.1.0   | 2025-11-17 | Added: Semantic naming clarification, per-provider provisioners documentation, custom scripts extensibility section, split cleanup strategy documentation, variant cleanup requirements.               |
 | 3.0.0   | 2025-11-17 | **BREAKING**: Consolidated template structure; all `.pkr.hcl` files now in `packer_templates/` root; updated all paths and build commands; simplified provider/OS workflow.                            |
 | 2.2.0   | 2025-11-14 | Changed: Variants now use per-OS subdirectories; providers/virtualbox prepared for multi‑OS (common + per‑OS wrappers); added dynamic selection examples; updated directory structure and Phase 2 notes. |

@@ -31,7 +31,7 @@ case "${PACKER_BUILDER_TYPE}" in
     if [[ "${VBOX_GUEST_ADDITIONS_MODE:-upload}" == "disable" ]]; then
       lib::warn "VirtualBox Guest Additions disabled via VBOX_GUEST_ADDITIONS_MODE"
     else
-      bash "${LIB_DIR}/scripts/providers/virtualbox/install_guest_additions.sh"
+      bash "${LIB_DIR}/providers/virtualbox/install_guest_additions.sh"
     fi
     ;;
 
@@ -42,13 +42,13 @@ case "${PACKER_BUILDER_TYPE}" in
     if [[ "${VMWARE_TOOLS_MODE:-auto}" == "disable" ]]; then
       lib::warn "VMware Tools disabled via VMWARE_TOOLS_MODE"
     else
-      bash "${LIB_DIR}/scripts/providers/vmware/install_vmware_tools.sh"
+      bash "${LIB_DIR}/providers/vmware/install_vmware_tools.sh"
     fi
     ;;
 
   qemu)
     lib::log "Installing QEMU Guest Agent..."
-    bash "${LIB_DIR}/scripts/providers/qemu/install_qemu_guest_agent.sh"
+    bash "${LIB_DIR}/providers/qemu/install_qemu_guest_agent.sh"
     ;;
 
   *)

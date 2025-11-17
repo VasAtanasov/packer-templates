@@ -6,11 +6,6 @@
 
 locals {
   // -----------------------------------------------------------------------------
-  // Platform Detection
-  // -----------------------------------------------------------------------------
-  is_windows = length(regexall("(?i)windows", lower(var.os_env))) > 0 || length(regexall("(?i)\\.exe$", lower(var.packer_executable))) > 0
-
-  // -----------------------------------------------------------------------------
   // Provider Detection
   // -----------------------------------------------------------------------------
   // Extract provider type from enabled sources (e.g., "virtualbox-iso" from "source.virtualbox-iso.vm")
@@ -22,6 +17,17 @@ locals {
   is_virtualbox_enabled     = local.is_virtualbox_iso_enabled || local.is_virtualbox_ovf_enabled
   is_vmware_enabled         = contains(local.active_providers, "vmware-iso")
   is_qemu_enabled           = contains(local.active_providers, "qemu")
+
+  // Provider family normalization for multi-source builds
+  provider_family_map = {
+    "virtualbox-iso" = "virtualbox"
+    "virtualbox-ovf" = "virtualbox"
+    "vmware-iso"     = "vmware"
+    "qemu"           = "qemu"
+  }
+  active_provider_families = distinct([
+    for p in local.active_providers : lookup(local.provider_family_map, p, p)
+  ])
 
   // -----------------------------------------------------------------------------
   // OS Family Detection
@@ -111,11 +117,36 @@ locals {
   // -----------------------------------------------------------------------------
   // Custom Scripts Discovery (User Extensibility)
   // -----------------------------------------------------------------------------
-  custom_scripts_dir = "${path.root}/scripts/custom/${local.os_family}"
-  custom_scripts = fileexists(local.custom_scripts_dir) ? [
-    for f in sort(fileset(local.custom_scripts_dir, "*.sh")) :
-    "${local.custom_scripts_dir}/${f}"
+  // Support three levels with precedence: variant → provider → OS family
+  // Only include files matching two-digit prefix pattern (??-*.sh)
+  custom_scripts_dir_base    = "${path.root}/scripts/custom/${local.os_family}"
+  custom_scripts_variant_dir = "${local.custom_scripts_dir_base}/${var.variant}"
+
+  custom_scripts_os = fileexists(local.custom_scripts_dir_base) ? [
+    for f in sort(fileset(local.custom_scripts_dir_base, "??-*.sh")) :
+    "${local.custom_scripts_dir_base}/${f}"
   ] : []
+
+  custom_scripts_variant = fileexists(local.custom_scripts_variant_dir) ? [
+    for f in sort(fileset(local.custom_scripts_variant_dir, "??-*.sh")) :
+    "${local.custom_scripts_variant_dir}/${f}"
+  ] : []
+
+  custom_scripts_provider = flatten([
+    for family in local.active_provider_families : (
+      fileexists("${local.custom_scripts_dir_base}/${family}") ? [
+        for f in sort(fileset("${local.custom_scripts_dir_base}/${family}", "??-*.sh")) :
+        "${local.custom_scripts_dir_base}/${family}/${f}"
+      ] : []
+    )
+  ])
+
+  // Final list with precedence and duplicates removed
+  custom_scripts = distinct(concat(
+    local.custom_scripts_variant,
+    local.custom_scripts_provider,
+    local.custom_scripts_os,
+  ))
 
   // -----------------------------------------------------------------------------
   // Consolidated Provisioning Script Lists (Semantic Names)

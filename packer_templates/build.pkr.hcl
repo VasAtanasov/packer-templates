@@ -25,7 +25,9 @@ build {
   provisioner "shell" {
     inline = [
       "install -d -m 0755 /usr/local/lib/scripts",
-      "cp -r /tmp/packer-scripts /usr/local/lib/scripts",
+      "cp -r /tmp/packer-scripts/* /usr/local/lib/scripts/",
+      // Normalize CRLF to LF for all shell scripts to avoid execution issues
+      "find /usr/local/lib/scripts -type f -name '*.sh' -exec sed -i 's/\\r$//' {} +",
       "chmod -R 0755 /usr/local/lib/scripts",
       "find /usr/local/lib/scripts -type f -name '*.sh' -exec chmod 0755 {} \\;",
       "chown -R root:root /usr/local/lib/scripts"
@@ -138,7 +140,7 @@ build {
   // ===========================================================================
   post-processor "vagrant" {
     compression_level    = 9
-    output               = "${path.root}/../builds/build_complete/${local.box_name}.virtualbox.box"
+    output               = "${path.root}/../builds/build_complete/${local.box_name}.{{ .Provider }}.box"
     vagrantfile_template = null
     keep_input_artifact  = true
   }

@@ -115,7 +115,7 @@ remove_build_dependencies() {
 # Main
 # ==============================================================================
 main() {
-    lib::header "VirtualBox Guest Additions Installation (Consolidated)"
+    lib::header "VirtualBox Guest Additions Installation"
 
     # Step 1: Install build dependencies
     lib::subheader "Installing VirtualBox build dependencies"

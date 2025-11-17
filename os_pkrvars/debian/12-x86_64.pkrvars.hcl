@@ -28,3 +28,8 @@ disk_size = 40960
 
 // Default to base variant (override via -var='variant=k8s-node')
 variant = "base"
+
+sources_enabled = [
+  "source.virtualbox-ovf.vm"
+]
+ovf_source_path="ovf/packer-debian-12.12-x86_64-virtualbox/debian-12.12-x86_64.ovf"
