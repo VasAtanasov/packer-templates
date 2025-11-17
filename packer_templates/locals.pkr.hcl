@@ -6,15 +6,21 @@
 
 locals {
   // -----------------------------------------------------------------------------
+  // Platform Detection
+  // -----------------------------------------------------------------------------
+  is_windows = length(regexall("(?i)windows", lower(var.os_env))) > 0 || length(regexall("(?i)\\.exe$", lower(var.packer_executable))) > 0
+
+  // -----------------------------------------------------------------------------
   // Provider Detection
   // -----------------------------------------------------------------------------
-  // Extract provider type from enabled sources (e.g., "virtualbox" from "source.virtualbox-iso.vm")
+  // Extract provider type from enabled sources (e.g., "virtualbox-iso" from "source.virtualbox-iso.vm")
   active_providers = [for source in var.sources_enabled : split(".", source)[1]]
 
   // Determine if each provider is enabled
-  is_virtualbox_enabled = contains(local.active_providers, "virtualbox-iso")
-  is_vmware_enabled     = contains(local.active_providers, "vmware-iso")
-  is_qemu_enabled       = contains(local.active_providers, "qemu")
+  is_virtualbox_iso_enabled = contains(local.active_providers, "virtualbox-iso")
+  is_virtualbox_ovf_enabled = contains(local.active_providers, "virtualbox-ovf")
+  is_virtualbox_enabled     = local.is_virtualbox_iso_enabled || local.is_virtualbox_ovf_enabled
+  is_vmware_enabled         = contains(local.active_providers, "vmware-iso")
 
   // -----------------------------------------------------------------------------
   // OS Family Detection
@@ -66,7 +72,14 @@ locals {
       "${path.root}/scripts/debian/sudoers.sh",
       "${path.root}/scripts/debian/networking.sh"
     ]
+    rhel = []
   }
+
+  // Combine common and OS-specific scripts
+  selected_os_scripts = concat(
+    local.common_scripts,
+    lookup(local.os_scripts, local.os_family, [])
+  )
 
   cleanup_scripts = {
     debian = ["${path.root}/scripts/debian/cleanup.sh"]

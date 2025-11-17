@@ -44,3 +44,29 @@ source "virtualbox-iso" "vm" {
   iso_interface        = local.vbox_iso_interface
   rtc_time_base        = var.vbox_rtc_time_base
 }
+
+// -----------------------------------------------------------------------------
+// VirtualBox OVF Source
+// -----------------------------------------------------------------------------
+source "virtualbox-ovf" "vm" {
+  vm_name = local.box_name
+
+  source_path = var.ovf_source_path
+  checksum    = var.ovf_checksum
+
+  ssh_username           = var.ssh_username
+  ssh_password           = var.ssh_password
+  ssh_timeout            = var.ssh_timeout
+  ssh_handshake_attempts = var.ssh_handshake_attempts
+
+  shutdown_command = var.shutdown_command
+  shutdown_timeout = var.shutdown_timeout
+
+  headless = var.headless
+
+  vboxmanage = local.vboxmanage
+
+  guest_additions_path = var.vbox_guest_additions_path
+
+  output_directory = "${local.output_directory}-virtualbox-ovf"
+}

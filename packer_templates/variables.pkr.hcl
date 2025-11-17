@@ -5,6 +5,21 @@
 // =============================================================================
 
 // -----------------------------------------------------------------------------
+// Platform Detection
+// -----------------------------------------------------------------------------
+variable "os_env" {
+  type        = string
+  default     = env("OS")
+  description = "Host OS environment variable (auto-detected)"
+}
+
+variable "packer_executable" {
+  type        = string
+  default     = "packer"
+  description = "Packer executable name (used for platform detection)"
+}
+
+// -----------------------------------------------------------------------------
 // Provider Selection
 // -----------------------------------------------------------------------------
 variable "provider" {
@@ -145,6 +160,83 @@ variable "http_directory" {
 }
 
 // -----------------------------------------------------------------------------
+// Proxy Configuration
+// -----------------------------------------------------------------------------
+variable "http_proxy" {
+  type    = string
+  default = env("http_proxy")
+}
+
+variable "https_proxy" {
+  type    = string
+  default = env("https_proxy")
+}
+
+variable "no_proxy" {
+  type    = string
+  default = env("no_proxy")
+}
+
+// -----------------------------------------------------------------------------
+// Advanced Options
+// -----------------------------------------------------------------------------
+variable "sources_enabled" {
+  type = list(string)
+  default = [
+    "source.virtualbox-iso.vm"
+  ]
+  description = "Build Sources to use for building vagrant boxes"
+}
+
+// -----------------------------------------------------------------------------
+// VirtualBox-specific Variables
+// -----------------------------------------------------------------------------
+variable "vbox_guest_os_type" {
+  type        = string
+  default     = null
+  description = "VirtualBox guest OS type for optimization"
+}
+
+variable "vbox_guest_additions_mode" {
+  type    = string
+  default = "upload"
+  validation {
+    condition     = contains(["upload", "attach", "disable"], var.vbox_guest_additions_mode)
+    error_message = "The vbox_guest_additions_mode must be 'upload', 'attach', or 'disable'."
+  }
+}
+
+variable "vbox_guest_additions_path" {
+  type    = string
+  default = "VBoxGuestAdditions_{{ .Version }}.iso"
+}
+
+variable "vbox_rtc_time_base" {
+  type    = string
+  default = "UTC"
+}
+
+variable "vboxmanage" {
+  type    = list(list(string))
+  default = null
+}
+
+// -----------------------------------------------------------------------------
+// VirtualBox OVF Import Configuration
+// -----------------------------------------------------------------------------
+variable "ovf_source_path" {
+  type        = string
+  default     = null
+  description = "Path to OVF/OVA file for virtualbox-ovf builder"
+}
+
+variable "ovf_checksum" {
+  type        = string
+  default     = null
+  description = "Checksum for OVF/OVA file (algorithm:value format, e.g., sha256:abc123...)"
+}
+
+// -----------------------------------------------------------------------------
 // Variant Configuration
 // -----------------------------------------------------------------------------
 variable "variant" {
@@ -183,63 +275,10 @@ variable "crio_version" {
 }
 
 // -----------------------------------------------------------------------------
-// VirtualBox-specific Variables
+// OVF Export Configuration
 // -----------------------------------------------------------------------------
-variable "vbox_guest_os_type" {
-  type        = string
-  default     = null
-  description = "VirtualBox guest OS type for optimization"
-}
-
-variable "vbox_guest_additions_mode" {
-  type    = string
-  default = "upload"
-  validation {
-    condition     = contains(["upload", "attach", "disable"], var.vbox_guest_additions_mode)
-    error_message = "The vbox_guest_additions_mode must be 'upload', 'attach', or 'disable'."
-  }
-}
-
-variable "vbox_guest_additions_path" {
-  type    = string
-  default = "VBoxGuestAdditions_{{ .Version }}.iso"
-}
-
-variable "vbox_rtc_time_base" {
-  type    = string
-  default = "UTC"
-}
-
-variable "vboxmanage" {
-  type    = list(list(string))
-  default = null
-}
-
-// -----------------------------------------------------------------------------
-// Proxy Configuration
-// -----------------------------------------------------------------------------
-variable "http_proxy" {
-  type    = string
-  default = env("http_proxy")
-}
-
-variable "https_proxy" {
-  type    = string
-  default = env("https_proxy")
-}
-
-variable "no_proxy" {
-  type    = string
-  default = env("no_proxy")
-}
-
-// -----------------------------------------------------------------------------
-// Advanced Options
-// -----------------------------------------------------------------------------
-variable "sources_enabled" {
-  type = list(string)
-  default = [
-    "source.virtualbox-iso.vm"
-  ]
-  description = "Build Sources to use for building vagrant boxes"
+variable "export_base_ovf" {
+  type        = bool
+  default     = false
+  description = "Export base variant as OVF/OVA for fast variant builds (only applies to base variant)"
 }

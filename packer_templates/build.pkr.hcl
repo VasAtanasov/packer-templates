@@ -61,7 +61,7 @@ build {
   // Phase 2a: Base OS Configuration
   // ===========================================================================
   provisioner "shell" {
-    scripts = local.common_scripts
+    scripts = local.selected_os_scripts
     environment_vars = [
       "LIB_DIR=/usr/local/lib/scripts",
       "LIB_CORE_SH=${local.lib_core_sh}",
@@ -111,7 +111,9 @@ build {
   // ===========================================================================
   // Phase 2c: OS Specific Configuration
   // ===========================================================================
+  /*
   provisioner "shell" {
+    only    = local.os_scripts[local.os_family] != null ? var.sources_enabled : []
     scripts = local.os_scripts[local.os_family]
     environment_vars = [
       "LIB_DIR=/usr/local/lib/scripts",
@@ -122,6 +124,7 @@ build {
     expect_disconnect = true
     pause_before      = "10s"
   }
+   */
 
   // ===========================================================================
   // Phase 2d: Variant-specific Provisioning
@@ -203,5 +206,6 @@ build {
     compression_level    = 9
     output               = "${path.root}/../builds/build_complete/${local.box_name}.virtualbox.box"
     vagrantfile_template = null
+    keep_input_artifact  = true
   }
 }

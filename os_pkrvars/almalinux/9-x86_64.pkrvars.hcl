@@ -13,3 +13,6 @@ boot_command = [
   " inst.repo=https://repo.almalinux.org/almalinux/9/BaseOS/x86_64/os/",
   "<wait><enter><wait>",
 ]
+
+// Default to base variant (override via -var='variant=k8s-node')
+variant = "base"
