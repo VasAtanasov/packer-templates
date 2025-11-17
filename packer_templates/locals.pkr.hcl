@@ -21,6 +21,7 @@ locals {
   is_virtualbox_ovf_enabled = contains(local.active_providers, "virtualbox-ovf")
   is_virtualbox_enabled     = local.is_virtualbox_iso_enabled || local.is_virtualbox_ovf_enabled
   is_vmware_enabled         = contains(local.active_providers, "vmware-iso")
+  is_qemu_enabled           = contains(local.active_providers, "qemu")
 
   // -----------------------------------------------------------------------------
   // OS Family Detection
@@ -75,12 +76,6 @@ locals {
     rhel = []
   }
 
-  // Combine common and OS-specific scripts
-  selected_os_scripts = concat(
-    local.common_scripts,
-    lookup(local.os_scripts, local.os_family, [])
-  )
-
   cleanup_scripts = {
     debian = ["${path.root}/scripts/debian/cleanup.sh"]
     rhel   = ["${path.root}/scripts/rhel/cleanup.sh"]
@@ -92,57 +87,66 @@ locals {
   variant_scripts = {
     "k8s-node" = concat(
       [
-        "variants/k8s-node/common/prepare.sh",
-        "variants/k8s-node/common/configure_kernel.sh",
+        "${path.root}/scripts/variants/k8s-node/common/prepare.sh",
+        "${path.root}/scripts/variants/k8s-node/common/configure_kernel.sh",
       ],
       [
-        "variants/k8s-node/${local.os_family}/install_container_runtime.sh",
-        "variants/k8s-node/${local.os_family}/install_kubernetes.sh",
+        "${path.root}/scripts/variants/k8s-node/${local.os_family}/install_container_runtime.sh",
+        "${path.root}/scripts/variants/k8s-node/${local.os_family}/install_kubernetes.sh",
       ],
       [
-        "variants/k8s-node/common/configure_networking.sh",
+        "${path.root}/scripts/variants/k8s-node/common/configure_networking.sh",
+        "${path.root}/scripts/variants/k8s-node/${local.os_family}/cleanup_k8s.sh",
       ],
     )
     "docker-host" = [
-      "variants/docker-host/${local.os_family}/install_docker.sh",
-      "variants/docker-host/${local.os_family}/configure_docker.sh",
+      "${path.root}/scripts/variants/docker-host/${local.os_family}/install_docker.sh",
+      "${path.root}/scripts/variants/docker-host/${local.os_family}/configure_docker.sh",
+      "${path.root}/scripts/variants/docker-host/${local.os_family}/cleanup_docker.sh",
     ]
   }
 
   selected_variant_scripts = var.variant == "base" ? [] : lookup(local.variant_scripts, var.variant, [])
 
   // -----------------------------------------------------------------------------
+  // Custom Scripts Discovery (User Extensibility)
+  // -----------------------------------------------------------------------------
+  custom_scripts_dir = "${path.root}/scripts/custom/${local.os_family}"
+  custom_scripts = fileexists(local.custom_scripts_dir) ? [
+    for f in sort(fileset(local.custom_scripts_dir, "*.sh")) :
+    "${local.custom_scripts_dir}/${f}"
+  ] : []
+
+  // -----------------------------------------------------------------------------
+  // Consolidated Provisioning Script Lists (Semantic Names)
+  // -----------------------------------------------------------------------------
+
+  // Provider provisioning: common scripts + guest tools entry point
+  // Guest tools script uses PACKER_BUILDER_TYPE to detect provider at runtime
+  provider_provisioning_scripts = concat(
+    local.common_scripts,
+    ["${path.root}/scripts/providers/guest_tools.sh"]
+  )
+
+  // OS and variant configuration (provider-agnostic)
+  os_and_variant_scripts = concat(
+    # OS-specific configuration
+    lookup(local.os_scripts, local.os_family, []),
+
+    # Variant-specific configuration (includes variant cleanup)
+    local.selected_variant_scripts,
+
+    # User extension scripts
+    local.custom_scripts,
+
+    # Base OS cleanup (runs after variants clean themselves)
+    lookup(local.cleanup_scripts, local.os_family, [])
+  )
+
+  // -----------------------------------------------------------------------------
   // Provisioner Execute Command
   // -----------------------------------------------------------------------------
   execute_command = "echo 'vagrant' | {{ .Vars }} sudo -S -E bash -eux '{{ .Path }}'"
-
-  // -----------------------------------------------------------------------------
-  // Provider Guest Tools Configuration (Provider-Agnostic)
-  // -----------------------------------------------------------------------------
-  provider_guest_tools = {
-    virtualbox = {
-      script   = "${path.root}/scripts/providers/virtualbox/guest_tools_virtualbox.sh"
-      mode_var = var.vbox_guest_additions_mode
-      enabled  = local.is_virtualbox_enabled
-    }
-    vmware = {
-      script   = "${path.root}/scripts/providers/vmware/guest_tools_vmware.sh" # Future
-      mode_var = null                                                          # Future: var.vmware_tools_mode
-      enabled  = local.is_vmware_enabled
-    }
-  }
-
-  // Get list of providers that need guest tools installed
-  providers_with_tools = [
-    for provider, config in local.provider_guest_tools :
-    provider if config.script != null && config.enabled && (config.mode_var == null || config.mode_var != "disable")
-  ]
-
-  // Build list of guest tool scripts to run
-  guest_tools_scripts = [
-    for provider in local.providers_with_tools :
-    local.provider_guest_tools[provider].script
-  ]
 
   // -----------------------------------------------------------------------------
   // VirtualBox-specific Locals

@@ -11,6 +11,9 @@ Gemfile.lock
 bootstrap.sh
 /builds/
 .claude/
+
+# Custom provisioning scripts (user-specific, not committed by default)
+packer_templates/scripts/custom/**/*.sh
 # Created by https://www.toptal.com/developers/gitignore/api/packer,vagrant,rubymine+all
 # Edit at https://www.toptal.com/developers/gitignore?templates=packer,vagrant,rubymine+all
 

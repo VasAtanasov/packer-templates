@@ -1,20 +1,21 @@
 ---
 title: Packer Vagrant Box Builder (Multi-Provider)
 status: Active
-version: 2.2.0
-scope: Provider × OS matrix organization for building Vagrant boxes
+version: 3.0.0
+scope: Consolidated template structure for building Vagrant boxes
 ---
 
 # Packer Vagrant Box Builder (Multi-Provider)
 
 Packer setup for building Debian-based Vagrant boxes with support for multiple providers (VirtualBox, with VMware and
-QEMU planned). Uses **Provider × OS matrix** organization to support future expansion to Ubuntu and AlmaLinux without
-refactoring. Currently focused on Debian 12/13 with VirtualBox. Host-agnostic (works on Windows, Linux, macOS).
+QEMU planned). Uses a **consolidated template structure** with all Packer configuration in a single directory. Provider
+and OS selection happens via variables passed at build time. Currently focused on Debian 12/13 with VirtualBox.
+Host-agnostic (works on Windows, Linux, macOS).
 
 ## Highlights
 
-- **Provider × OS matrix**: Templates organized as `packer_templates/<provider>/<os>/`
-- **Future-proof**: Add Ubuntu/AlmaLinux by creating new provider/OS directories
+- **Consolidated templates**: All `.pkr.hcl` files in `packer_templates/` root directory
+- **Single source of truth**: Provider/OS selection via variables, not directory structure
 - **Simplified variables**: `12-x86_64.pkrvars.hcl` instead of verbose naming
 - **Variant support**: Build base, k8s-node, or docker-host boxes via `-var` flags
 - **3-phase provisioning**: System prep → OS config → cleanup/minimize
@@ -116,7 +117,7 @@ vagrant up
 # Base box
 packer build \
   -var-file=os_pkrvars/debian/12-x86_64.pkrvars.hcl \
-  packer_templates/virtualbox/debian/
+  packer_templates/
 
 # With variant
 packer build \
@@ -124,7 +125,7 @@ packer build \
   -var=variant=k8s-node \
   -var=kubernetes_version=1.33 \
   -var=cpus=2 -var=memory=4096 -var=disk_size=61440 \
-  packer_templates/virtualbox/debian/
+  packer_templates/
 ```
 
 ### Customizing a Build
@@ -163,13 +164,14 @@ vboxmanage = [
 ### Environment Variables
 
 ```bash
-# Change provider or OS (Linux/macOS)
-make build TEMPLATE=debian/12-x86_64.pkrvars.hcl PROVIDER=virtualbox TARGET_OS=debian
+# Build with specific OS template files (Linux/macOS)
+make build TEMPLATE=debian/12-x86_64.pkrvars.hcl TARGET_OS=debian
 
-# Change provider or OS (Windows)
-rake build TEMPLATE=debian/12-x86_64.pkrvars.hcl PROVIDER=virtualbox TARGET_OS=debian
+# Build with specific OS template files (Windows)
+rake build TEMPLATE=debian/12-x86_64.pkrvars.hcl TARGET_OS=debian
 
-# Note: TARGET_OS (not OS) to avoid Windows OS=Windows_NT environment variable conflict
+# Note: TARGET_OS controls which os_pkrvars/<os>/ directory to use
+# Note: PROVIDER is informational - provider selection happens via variables in .pkrvars.hcl
 ```
 
 ## Troubleshooting
@@ -185,57 +187,61 @@ ISO path via `vbox_guest_additions_path` if needed.
 
 Set `headless = false` in your `.pkrvars.hcl` to view the VirtualBox GUI.
 
-## Provider × OS Matrix Architecture
+## Template Architecture
 
 Current structure:
 
 ```
 packer_templates/
-  virtualbox/              # VirtualBox provider
-    debian/                # Debian OS
-      sources.pkr.hcl      # Variables, locals, source definition
-      builds.pkr.hcl       # Build block, provisioners, post-processors
-      pkr-plugins.pkr.hcl  # Required plugins (virtualbox, vagrant)
-      http/                # HTTP server files for installer
-        preseed.cfg        # Debian preseed configuration
-  vmware/                  # VMware provider (planned)
-    debian/                # Debian for VMware (planned)
-  scripts/                 # Shared across all providers/OS
-    _common/               # Cross-distro scripts + modular libraries
-      lib-core.sh          # OS-agnostic helpers
-      lib-debian.sh        # Debian/Ubuntu APT helpers
-      lib-rhel.sh          # AlmaLinux/Rocky DNF helpers
-    debian/                # Debian-specific scripts
-    providers/             # Provider-specific scripts
-      virtualbox/          # VirtualBox Guest Additions
-    variants/              # Variant-specific scripts (per-OS subdirectories)
+  variables.pkr.hcl         # All Packer variables
+  locals.pkr.hcl            # Computed locals and logic
+  sources.pkr.hcl           # Source definitions (virtualbox-iso, vmware-iso, etc.)
+  build.pkr.hcl             # Build block with provisioners and post-processors
+  plugins.pkr.hcl           # Required plugins
+  http/                     # HTTP server files for installer
+    debian/                 # Debian preseed files
+      preseed.cfg
+    rhel/                   # RHEL/AlmaLinux kickstart files (planned)
+  scripts/                  # Shared provisioning scripts
+    _common/                # Cross-distro scripts + modular libraries
+      lib-core.sh           # OS-agnostic helpers
+      lib-debian.sh         # Debian/Ubuntu APT helpers
+      lib-rhel.sh           # AlmaLinux/Rocky DNF helpers
+    debian/                 # Debian-specific scripts
+    providers/              # Provider-specific scripts
+      virtualbox/           # VirtualBox integration (per-OS subdirs)
+        common/             # Shared across OS families
+        debian/             # Debian/Ubuntu wrappers or overrides
+        rhel/               # RHEL-family wrappers or overrides
+    variants/               # Variant-specific scripts (per-OS subdirectories)
       k8s-node/
-        common/            # OS-agnostic steps (prepare/kernel/networking)
-        debian/            # Debian/Ubuntu steps (runtime + Kubernetes)
-        rhel/              # RHEL family steps (planned)
+        common/             # OS-agnostic steps (prepare/kernel/networking)
+        debian/             # Debian/Ubuntu steps (runtime + Kubernetes)
+        rhel/               # RHEL family steps (planned)
       docker-host/
-        debian/            # Debian/Ubuntu steps (install + configure)
-        rhel/              # RHEL family steps (planned)
+        debian/             # Debian/Ubuntu steps (install + configure)
+        rhel/               # RHEL family steps (planned)
 
 os_pkrvars/
-  debian/                  # Debian variable files
-    12-x86_64.pkrvars.hcl  # Debian 12 x86_64 (base + all variants)
-    12-aarch64.pkrvars.hcl # Debian 12 aarch64
-    13-x86_64.pkrvars.hcl  # Debian 13 x86_64
-    13-aarch64.pkrvars.hcl # Debian 13 aarch64
+  debian/                   # Debian variable files
+    12-x86_64.pkrvars.hcl   # Debian 12 x86_64 (base + all variants)
+    12-aarch64.pkrvars.hcl  # Debian 12 aarch64
+    13-x86_64.pkrvars.hcl   # Debian 13 x86_64
+    13-aarch64.pkrvars.hcl  # Debian 13 aarch64
 ```
 
 **Why this structure:**
 
-- **Provider isolation**: Each provider has its own directory with provider-specific config
-- **OS flexibility**: Easy to add Ubuntu, AlmaLinux by creating `<provider>/ubuntu/`, etc.
-- **No refactoring**: Future expansion happens by adding directories, not restructuring
+- **Single source of truth**: All templates in one place, easier to maintain
+- **Provider flexibility**: Add providers by extending `sources.pkr.hcl` and `build.pkr.hcl`
+- **OS flexibility**: Add OSes via new http subdirs and os_pkrvars entries
+- **No refactoring**: Future expansion happens via configuration, not restructuring
 - **Packer auto-aggregation**: All `.pkr.hcl` files in a directory are automatically combined
 
 ### Variant Script Selection (Dynamic)
 
-Variants select scripts per OS family at build time. The template computes `local.os_family` from `var.os_name` and
-uses it to choose the correct per‑OS script paths:
+Variants select scripts per OS family at build time. The `locals.pkr.hcl` file computes `local.os_family` from
+`var.os_name` and uses it to choose the correct per‑OS script paths:
 
 ```hcl
 locals {
@@ -269,44 +275,42 @@ locals {
 
 ### Add a New OS (e.g., Ubuntu)
 
-1. Create `packer_templates/virtualbox/ubuntu/` directory
-2. Copy `virtualbox/debian/{sources,builds,pkr-plugins}.pkr.hcl` as templates
-3. Create `virtualbox/ubuntu/http/` with Ubuntu autoinstall files
-4. Create `os_pkrvars/ubuntu/` with variable files (e.g., `22.04-x86_64.pkrvars.hcl`)
-5. Update source name and configs in `sources.pkr.hcl`
+1. Create `packer_templates/http/ubuntu/` with Ubuntu autoinstall files
+2. Create `os_pkrvars/ubuntu/` with variable files (e.g., `22.04-x86_64.pkrvars.hcl`)
+3. Update `packer_templates/locals.pkr.hcl` to include "ubuntu" in `os_family` detection if needed
+4. Create `packer_templates/scripts/ubuntu/` if distro-specific scripts needed
+5. Create `packer_templates/scripts/providers/virtualbox/ubuntu/` for Ubuntu-specific Guest Additions handling
 6. Add make/rake targets (e.g., `ubuntu-22-04`)
 
 ### Add a New Provider (e.g., VMware)
 
-1. Create `packer_templates/vmware/debian/` directory
-2. Create `sources.pkr.hcl` with `source "vmware-iso" "debian"` block
-3. Create `builds.pkr.hcl` (copy from VirtualBox, adjust paths)
-4. Create `pkr-plugins.pkr.hcl` with VMware plugin
-5. Create `vmware/debian/http/` and copy preseed files
-6. Add VMware Tools provisioning to Phase 2
-7. Repeat for each OS (ubuntu, almalinux)
+1. Add VMware source block to `packer_templates/sources.pkr.hcl`:
+   ```hcl
+   source "vmware-iso" "vm" {
+     // VMware-specific configuration
+   }
+   ```
+2. Add VMware plugin to `packer_templates/plugins.pkr.hcl`
+3. Update `packer_templates/build.pkr.hcl` to include VMware source in builds
+4. Create `packer_templates/scripts/providers/vmware/` for VMware Tools integration
+5. Update provisioning logic in `build.pkr.hcl` to conditionally use provider-specific scripts
 
 ### Add a New Variant
 
-1. Create `packer_templates/scripts/variants/<name>/` directory
-2. Add OS layout: `common/` (optional), `debian/`, `rhel/` (as needed)
-3. Write ordered scripts per OS (e.g., `debian/install.sh`, `debian/configure.sh`)
-4. Add the variant to the template's `variant_scripts` map using dynamic OS selection in `sources.pkr.hcl`:
+1. Create `packer_templates/scripts/variants/<name>/` directory with OS subdirs (common/, debian/, rhel/)
+2. Write ordered scripts per OS (e.g., `debian/install.sh`, `debian/configure.sh`)
+3. Add the variant to the `variant_scripts` map in `packer_templates/locals.pkr.hcl`:
    ```hcl
-   locals {
-     os_family = contains(["debian","ubuntu"], var.os_name) ? "debian" : (
-       contains(["almalinux","rocky","rhel"], var.os_name) ? "rhel" : var.os_name
-     )
-     variant_scripts = merge(local.variant_scripts, {
-       "<name>" = [
-         "variants/<name>/${local.os_family}/install.sh",
-         "variants/<name>/${local.os_family}/configure.sh",
-       ]
-     })
+   variant_scripts = {
+     "k8s-node" = [...],
+     "<name>" = [
+       "variants/<name>/${local.os_family}/install.sh",
+       "variants/<name>/${local.os_family}/configure.sh",
+     ]
    }
    ```
-5. Update `variant` variable validation to include the new variant
-6. Add convenience make/rake targets
+4. Update `variant` variable validation in `packer_templates/variables.pkr.hcl` to include the new variant
+5. Add convenience make/rake targets
 
 ## Contributing
 
@@ -326,6 +330,7 @@ When making changes:
 
 | Version | Date       | Changes                                                                                                                                                                                                                                   |
 |---------|------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 3.0.0   | 2025-11-17 | **BREAKING**: Consolidated template structure; all `.pkr.hcl` files now in `packer_templates/` root; updated all paths, build commands, and architecture sections; simplified provider/OS workflow.                                      |
 | 2.2.0   | 2025-11-14 | Changed: Variants now use per-OS subdirectories; providers/virtualbox prepared for multi‑OS (common + per‑OS wrappers); updated directory structure and dynamic examples.                                                                                              |
 | 2.1.0   | 2025-11-14 | Changed: Switch to modular libraries (`lib-core.sh`, `lib-debian.sh`, `lib-rhel.sh`); updated provisioning notes and directory structure.                                                                                                 |
 | 2.0.0   | 2025-11-13 | Provider × OS matrix restructure; simplified variable files (12-x86_64.pkrvars.hcl); variant-via-flags approach; updated all command examples and architecture documentation; added Windows compatibility notes (TARGET_OS, quote fixes). |

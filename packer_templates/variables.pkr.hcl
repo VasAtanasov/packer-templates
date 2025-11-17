@@ -237,6 +237,19 @@ variable "ovf_checksum" {
 }
 
 // -----------------------------------------------------------------------------
+// VMware-specific Variables
+// -----------------------------------------------------------------------------
+variable "vmware_tools_mode" {
+  type    = string
+  default = "auto"
+  validation {
+    condition     = contains(["auto", "disable"], var.vmware_tools_mode)
+    error_message = "The vmware_tools_mode must be 'auto' or 'disable'."
+  }
+  description = "VMware Tools installation mode: 'auto' to install, 'disable' to skip"
+}
+
+// -----------------------------------------------------------------------------
 // Variant Configuration
 // -----------------------------------------------------------------------------
 variable "variant" {
@@ -272,13 +285,4 @@ variable "crio_version" {
   type        = string
   default     = "1.33"
   description = "CRI-O version (only used if container_runtime=cri-o)"
-}
-
-// -----------------------------------------------------------------------------
-// OVF Export Configuration
-// -----------------------------------------------------------------------------
-variable "export_base_ovf" {
-  type        = bool
-  default     = false
-  description = "Export base variant as OVF/OVA for fast variant builds (only applies to base variant)"
 }
