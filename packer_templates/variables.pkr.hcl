@@ -151,6 +151,12 @@ variable "shutdown_timeout" {
   default = "15m"
 }
 
+variable "keep_input_artifact" {
+  type        = bool
+  default     = false
+  description = "Keep intermediate build artifacts (VM files) after creating .box file"
+}
+
 // -----------------------------------------------------------------------------
 // HTTP Server (for preseed/kickstart files)
 // -----------------------------------------------------------------------------
@@ -189,6 +195,15 @@ variable "sources_enabled" {
 }
 
 // -----------------------------------------------------------------------------
+// Build Controls
+// -----------------------------------------------------------------------------
+variable "skip_provisioners" {
+  type        = bool
+  default     = false
+  description = "When true, skip all provisioners to produce a clean base VM/OVF."
+}
+
+// -----------------------------------------------------------------------------
 // VirtualBox-specific Variables
 // -----------------------------------------------------------------------------
 variable "vbox_guest_os_type" {
@@ -219,6 +234,12 @@ variable "vbox_rtc_time_base" {
 variable "vboxmanage" {
   type    = list(list(string))
   default = null
+}
+
+variable "vbox_keep_registered" {
+  type        = bool
+  default     = false
+  description = "Keep VirtualBox VMs registered after build (enables manual export)."
 }
 
 // -----------------------------------------------------------------------------

@@ -103,6 +103,21 @@ endif
 		$$extra_vars \
 		$$template_dir
 
+.PHONY: ovf-clean
+ovf-clean: init ## Build a clean OVF (no provisioners) for quick testing (usage: make ovf-clean TEMPLATE=debian/12-x86_64.pkrvars.hcl)
+ifndef TEMPLATE
+	@echo -e "$(RED)Error: TEMPLATE variable not set$(RESET)"
+	@echo "Usage: make ovf-clean TEMPLATE=debian/12-x86_64.pkrvars.hcl"
+	@exit 1
+endif
+	@template_dir=$(TEMPLATE_DIR_BASE); \
+	var_file=$(PKRVARS_DIR)/$(TEMPLATE); \
+	echo -e "$(GREEN)Building CLEAN OVF from $$var_file (no provisioners)$(RESET)"; \
+	packer build \
+		-var=skip_provisioners=true \
+		-var-file=$$var_file \
+		$$template_dir
+
 .PHONY: build-all
 build-all: init ## Build all boxes for current TARGET_OS
 	@echo -e "$(GREEN)Building all boxes for $(TARGET_OS)...$(RESET)\n"
@@ -271,3 +286,29 @@ check-env: ## Check environment and dependencies
 		if [ "$$vv" = "$$(printf '%s\n%s\n' "$$vv" "$(VBOX_MIN_VER)" | sort -V | tail -n1)" ]; then :; else \
 		  echo -e "$(RED)Error: VirtualBox $$vv < required $(VBOX_MIN_VER)$(RESET)"; exit 1; fi
 	@echo -e "$(GREEN)Environment check passed!$(RESET)"
+.PHONY: vbox-export
+vbox-export: ## Export a registered VirtualBox VM to OVA (usage: make vbox-export TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node])
+ifndef TEMPLATE
+	@echo -e "$(RED)Error: TEMPLATE variable not set$(RESET)"
+	@echo "Usage: make vbox-export TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node]"
+	@exit 1
+endif
+	@var_file=$(PKRVARS_DIR)/$(TEMPLATE); \
+	os_name=$$(sed -n 's/^\s*os_name\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+	os_version=$$(sed -n 's/^\s*os_version\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+	os_arch=$$(sed -n 's/^\s*os_arch\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+	variant_env="$(VARIANT)"; \
+	variant_file=$$(sed -n 's/^\s*variant\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+	variant=$${variant_env:-$${variant_file:-base}}; \
+	box_name=$$([ "$$variant" = "base" -o -z "$$variant" ] && echo "$$os_name-$$os_version-$$os_arch" || echo "$$os_name-$$os_version-$$os_arch-$$variant"); \
+	out_dir=$(BUILDS_DIR)/build_complete; \
+	mkdir -p "$$out_dir"; \
+	if VBoxManage showvminfo "$$box_name" >/dev/null 2>&1; then \
+		echo -e "$(GREEN)Exporting $$box_name to $$out_dir/$$box_name.ova$(RESET)"; \
+		VBoxManage export "$$box_name" --output "$$out_dir/$$box_name.ova"; \
+		echo -e "$(GREEN)Export complete: $$out_dir/$$box_name.ova$(RESET)"; \
+	else \
+		echo -e "$(RED)VM '$$box_name' not found or not registered.$(RESET)"; \
+		echo -e "$(YELLOW)Build with -var=vbox_keep_registered=true, then run this target.$(RESET)"; \
+		exit 1; \
+	fi

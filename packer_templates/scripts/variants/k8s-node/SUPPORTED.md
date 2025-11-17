@@ -18,14 +18,17 @@ variants/k8s-node/
 ├── debian/                     # Debian/Ubuntu-specific scripts
 │   ├── install_container_runtime.sh
 │   └── install_kubernetes.sh
-└── rhel/                       # RHEL/AlmaLinux-specific scripts (planned)
+└── rhel/                       # RHEL/AlmaLinux/Rocky-specific scripts
+    ├── install_container_runtime.sh
+    ├── install_kubernetes.sh
+    └── cleanup_k8s.sh
 ```
 
 ## Supported OS Families
 
 - Debian family: Debian 12, Debian 13 (x86_64, aarch64)
 - Ubuntu family: Planned
-- RHEL family (RHEL/AlmaLinux/Rocky): Planned
+- RHEL family (RHEL/AlmaLinux/Rocky): Implemented (containerd runtime)
 
 Packer selects the appropriate OS-specific scripts at build time using a computed `os_family` derived from `os_name`.
 
@@ -47,5 +50,5 @@ Packer selects the appropriate OS-specific scripts at build time using a compute
 
 | Version | Date       | Changes                                      |
 |---------|------------|----------------------------------------------|
-| 0.1.0   | 2025-11-14 | Initial support matrix and layout structure. |
-
+| 0.2.0   | 2025-11-17 | Add RHEL-family implementation (containerd runtime).   |
+| 0.1.0   | 2025-11-14 | Initial support matrix and layout structure.           |

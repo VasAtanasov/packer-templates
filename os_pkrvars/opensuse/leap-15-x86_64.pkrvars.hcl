@@ -1,9 +1,10 @@
-os_name                 = "opensuse-leap"
-os_version              = "15.6"
-os_arch                 = "x86_64"
-iso_url                 = "https://download.opensuse.org/distribution/leap/15.6/iso/openSUSE-Leap-15.6-NET-x86_64-Media.iso"
-iso_checksum            = "file:https://download.opensuse.org/distribution/leap/15.6/iso/openSUSE-Leap-15.6-NET-x86_64-Media.iso.sha256"
-vbox_guest_os_type      = "OpenSUSE_Leap_64"
+os_name            = "opensuse-leap"
+os_version         = "15.6"
+os_arch            = "x86_64"
+iso_url            = "https://download.opensuse.org/distribution/leap/15.6/iso/openSUSE-Leap-15.6-NET-x86_64-Media.iso"
+iso_checksum       = "file:https://download.opensuse.org/distribution/leap/15.6/iso/openSUSE-Leap-15.6-NET-x86_64-Media.iso.sha256"
+variant            = "base"
+vbox_guest_os_type = "OpenSUSE_Leap_64"
 boot_command = [
   "<wait5>",
   "<esc><enter><wait>",

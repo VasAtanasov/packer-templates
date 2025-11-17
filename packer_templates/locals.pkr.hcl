@@ -8,15 +8,10 @@ locals {
   // -----------------------------------------------------------------------------
   // Provider Detection
   // -----------------------------------------------------------------------------
+  source_names = [for source in var.sources_enabled : trimprefix(source, "source.")]
+
   // Extract provider type from enabled sources (e.g., "virtualbox-iso" from "source.virtualbox-iso.vm")
   active_providers = [for source in var.sources_enabled : split(".", source)[1]]
-
-  // Determine if each provider is enabled
-  is_virtualbox_iso_enabled = contains(local.active_providers, "virtualbox-iso")
-  is_virtualbox_ovf_enabled = contains(local.active_providers, "virtualbox-ovf")
-  is_virtualbox_enabled     = local.is_virtualbox_iso_enabled || local.is_virtualbox_ovf_enabled
-  is_vmware_enabled         = contains(local.active_providers, "vmware-iso")
-  is_qemu_enabled           = contains(local.active_providers, "qemu")
 
   // Provider family normalization for multi-source builds
   provider_family_map = {
@@ -173,6 +168,13 @@ locals {
     # Base OS cleanup (runs after variants clean themselves)
     lookup(local.cleanup_scripts, local.os_family, [])
   )
+
+  // -----------------------------------------------------------------------------
+  // Provisioner Controls
+  // -----------------------------------------------------------------------------
+  // When skip_provisioners is true, except all enabled sources (skip provisioners)
+  // When false, except nothing (run provisioners normally)
+  provisioner_except = var.skip_provisioners ? local.source_names : null
 
   // -----------------------------------------------------------------------------
   // Provisioner Execute Command

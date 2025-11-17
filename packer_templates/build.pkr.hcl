@@ -16,6 +16,7 @@ build {
   provisioner "file" {
     source      = "${path.root}/scripts"
     destination = "/tmp/packer-scripts"
+    except      = local.provisioner_except
   }
 
   // ===========================================================================
@@ -33,6 +34,7 @@ build {
       "chown -R root:root /usr/local/lib/scripts"
     ]
     execute_command = local.execute_command
+    except          = local.provisioner_except
   }
 
   // ===========================================================================
@@ -50,6 +52,7 @@ build {
     expect_disconnect = true // May reboot
     pause_before      = "10s"
     valid_exit_codes  = [0, 143]
+    except            = local.provisioner_except
   }
 
   provisioner "shell" {
@@ -57,6 +60,7 @@ build {
       "echo 'Waiting after reboot'"
     ]
     pause_after = "10s"
+    except      = local.provisioner_except
   }
 
   // ===========================================================================
@@ -77,6 +81,7 @@ build {
     execute_command   = local.execute_command
     expect_disconnect = true
     pause_before      = "10s"
+    except            = local.provisioner_except
   }
 
   provisioner "shell" {
@@ -84,6 +89,7 @@ build {
       "echo 'Waiting after provider tools installation'"
     ]
     pause_after = "10s"
+    except      = local.provisioner_except
   }
 
   // ===========================================================================
@@ -108,6 +114,7 @@ build {
     execute_command   = local.execute_command
     expect_disconnect = true
     pause_before      = "10s"
+    except            = local.provisioner_except
   }
 
   // ===========================================================================
@@ -123,6 +130,7 @@ build {
     execute_command   = local.execute_command
     expect_disconnect = true
     pause_after       = "10s"
+    except            = local.provisioner_except
   }
 
   // ===========================================================================
@@ -133,6 +141,7 @@ build {
       "rm -rf /usr/local/lib/scripts"
     ]
     execute_command = local.execute_command
+    except          = local.provisioner_except
   }
 
   // ===========================================================================
@@ -142,6 +151,6 @@ build {
     compression_level    = 9
     output               = "${path.root}/../builds/build_complete/${local.box_name}.{{ .Provider }}.box"
     vagrantfile_template = null
-    keep_input_artifact  = true
+    keep_input_artifact  = var.keep_input_artifact
   }
 }

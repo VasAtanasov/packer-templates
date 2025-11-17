@@ -420,6 +420,64 @@ task :debug do
   end
 end
 
+##@ VirtualBox Utilities
+
+desc 'Export a registered VirtualBox VM to OVA (usage: rake vbox_export TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node])'
+task :vbox_export do
+  template = ENV['TEMPLATE']
+  variant_env = ENV['VARIANT']
+
+  unless template
+    puts "#{RED}Error: TEMPLATE variable not set#{RESET}"
+    puts "Usage: rake vbox_export TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node]"
+    exit 1
+  end
+
+  var_file = File.join(PKRVARS_DIR, template)
+  unless File.exist?(var_file)
+    puts "#{RED}Var file not found: #{var_file}#{RESET}"
+    exit 1
+  end
+
+  read_val = ->(key) do
+    line = File.readlines(var_file).find { |l| l =~ /^\s*#{key}\s*=\s*"/ }
+    line && line[/^\s*#{key}\s*=\s*"(.*?)"/, 1]
+  end
+
+  os_name = read_val.call('os_name') || 'unknown'
+  os_version = read_val.call('os_version') || 'unknown'
+  os_arch = read_val.call('os_arch') || 'unknown'
+  variant_file = read_val.call('variant') || 'base'
+  variant = (variant_env && !variant_env.empty?) ? variant_env : variant_file
+  box_name = (variant == 'base' || variant.nil? || variant.empty?) ?
+               "#{os_name}-#{os_version}-#{os_arch}" :
+               "#{os_name}-#{os_version}-#{os_arch}-#{variant}"
+
+  out_dir = File.join(BUILDS_DIR, 'build_complete')
+  FileUtils.mkdir_p(out_dir)
+  ova_path = File.join(out_dir, "#{box_name}.ova")
+
+  # Check VM registration
+  show_cmd = [ 'VBoxManage', 'showvminfo', box_name ]
+  ok = system(*show_cmd, out: File::NULL, err: File::NULL)
+  unless ok
+    puts "#{RED}VM '#{box_name}' not found or not registered.#{RESET}"
+    puts "#{YELLOW}Build with -var=vbox_keep_registered=true, then run this task.#{RESET}"
+    exit 1
+  end
+
+  puts "#{GREEN}Exporting #{box_name} to #{ova_path}#{RESET}"
+  export_cmd = [ 'VBoxManage', 'export', box_name, '--output', ova_path ]
+  success = system(*export_cmd)
+
+  if success
+    puts "#{GREEN}Export complete: #{ova_path}#{RESET}"
+  else
+    puts "#{RED}Export failed#{RESET}"
+    exit 1
+  end
+end
+
 desc 'Check environment and dependencies'
 task :check_env do
   puts "#{GREEN}Checking environment...#{RESET}"

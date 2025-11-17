@@ -38,6 +38,7 @@ source "virtualbox-iso" "vm" {
   guest_additions_mode = var.vbox_guest_additions_mode
   guest_additions_path = var.vbox_guest_additions_path
 
+  keep_registered  = var.vbox_keep_registered
   output_directory = "${local.output_directory}-virtualbox"
 
   hard_drive_interface = local.vbox_hard_drive_interface
@@ -68,5 +69,6 @@ source "virtualbox-ovf" "vm" {
 
   guest_additions_path = var.vbox_guest_additions_path
 
+  keep_registered  = var.vbox_keep_registered
   output_directory = "${local.output_directory}-virtualbox-ovf"
 }

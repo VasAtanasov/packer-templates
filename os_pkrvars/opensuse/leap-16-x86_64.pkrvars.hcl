@@ -1,9 +1,10 @@
-os_name                 = "opensuse-leap"
-os_version              = "16.0"
-os_arch                 = "x86_64"
-iso_url                 = "https://download.opensuse.org/distribution/leap/16.0/installer/iso/agama-installer.x86_64-Leap_16.0.iso"
-iso_checksum            = "file:https://download.opensuse.org/distribution/leap/16.0/installer/iso/agama-installer.x86_64-Leap_16.0.iso.sha256"
-vbox_guest_os_type      = "OpenSUSE_Leap_64"
+os_name            = "opensuse-leap"
+os_version         = "16.0"
+os_arch            = "x86_64"
+iso_url            = "https://download.opensuse.org/distribution/leap/16.0/installer/iso/agama-installer.x86_64-Leap_16.0.iso"
+iso_checksum       = "file:https://download.opensuse.org/distribution/leap/16.0/installer/iso/agama-installer.x86_64-Leap_16.0.iso.sha256"
+variant            = "base"
+vbox_guest_os_type = "OpenSUSE_Leap_64"
 boot_command = [
   "<wait>",
   "<down><wait>e<wait>",
