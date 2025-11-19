@@ -111,6 +111,10 @@ locals {
         "${path.root}/scripts/variants/k8s-node/${local.os_family}/install_kubernetes.sh",
       ],
       [
+        "${path.root}/scripts/variants/k8s-node/common/prepull_cni_images.sh",
+        "${path.root}/scripts/variants/k8s-node/common/write_cni_manifests.sh",
+      ],
+      [
         "${path.root}/scripts/variants/k8s-node/${local.os_family}/cleanup_k8s.sh",
       ],
     )

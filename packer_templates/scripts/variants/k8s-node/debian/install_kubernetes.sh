@@ -59,7 +59,8 @@ main() {
         apt-get install -y \
             "kubeadm=${k8s_version}-*" \
             "kubelet=${k8s_version}-*" \
-            "kubectl=${k8s_version}-*" || {
+            "kubectl=${k8s_version}-*" \
+            "cri-tools" || {
             lib::error "Failed to install Kubernetes ${k8s_version}"
             lib::error "Version may not exist in repository. Available versions:"
             apt-cache madison kubeadm | head -n 5
@@ -67,7 +68,7 @@ main() {
         }
     else
         lib::log "Installing latest Kubernetes from ${k8s_repo_version} repository..."
-        lib::ensure_packages kubeadm kubelet kubectl
+        lib::ensure_packages kubeadm kubelet kubectl cri-tools
     fi
 
     lib::log "Enabling bash completion for kubectl..."
@@ -95,6 +96,12 @@ main() {
         local version
         version=$(kubeadm version -o short)
         lib::log "kubeadm version: $version"
+    fi
+
+    lib::log "Pre-pulling core Kubernetes images for version ${k8s_version}..."
+    if command -v kubeadm >/dev/null 2>&1; then
+        kubeadm config images pull --kubernetes-version "${k8s_version}" || \
+            lib::warn "Failed to pre-pull images. This may be due to a network issue or an older kubeadm version. Continuing..."
     fi
 
     lib::success "Kubernetes components installed"

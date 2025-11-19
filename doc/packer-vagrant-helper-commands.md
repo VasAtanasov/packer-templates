@@ -50,7 +50,7 @@ builds\build_complete\debian-12.12-x86_64-k8s-node-1.33.3.json
 
 ### 4. Add the box to local Vagrant with version 1.33.3
 
-Run from the `builds\build_complete` directory so the `file:` URL in metadata resolves correctly:
+Run from the `builds\build_complete` directory so the relative URL in metadata resolves correctly:
 
 ```powershell
 Set-Location C:\Users\v.atanasov\softuni\packer\builds\build_complete
@@ -121,4 +121,3 @@ vagrant box add ./debian-12.12-x86_64-k8s-node-1.33.3.json
 | Version | Date       | Changes                                                               |
 |---------|------------|-----------------------------------------------------------------------|
 | 1.0.0   | 2025-11-19 | Added initial helper commands for Packer/Make/Rake/Vagrant workflows. |
-

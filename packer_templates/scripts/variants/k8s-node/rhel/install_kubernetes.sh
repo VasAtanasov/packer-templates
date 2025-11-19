@@ -67,6 +67,7 @@ EOF
                 "kubelet-${k8s_version}*" \
                 "kubeadm-${k8s_version}*" \
                 "kubectl-${k8s_version}*" \
+                "cri-tools" \
                 --disableexcludes=kubernetes >/dev/null 2>&1 || {
                 lib::error "Failed to install Kubernetes ${k8s_version} via dnf"
                 lib::error "Version may not exist in repository. Available versions:"
@@ -78,6 +79,7 @@ EOF
                 "kubelet-${k8s_version}*" \
                 "kubeadm-${k8s_version}*" \
                 "kubectl-${k8s_version}*" \
+                "cri-tools" \
                 --disableexcludes=kubernetes >/dev/null 2>&1 || {
                 lib::error "Failed to install Kubernetes ${k8s_version} via yum"
                 lib::error "Version may not exist in repository. Available versions:"
@@ -88,10 +90,10 @@ EOF
     else
         lib::log "Installing latest Kubernetes from ${k8s_repo_version} repository..."
         if command -v dnf >/dev/null 2>&1; then
-            dnf install -y kubelet kubeadm kubectl --disableexcludes=kubernetes >/dev/null 2>&1 || {
+            dnf install -y kubelet kubeadm kubectl cri-tools --disableexcludes=kubernetes >/dev/null 2>&1 || {
                 lib::error "Failed to install Kubernetes packages via dnf"; return 1; }
         else
-            yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes >/dev/null 2>&1 || {
+            yum install -y kubelet kubeadm kubectl cri-tools --disableexcludes=kubernetes >/dev/null 2>&1 || {
                 lib::error "Failed to install Kubernetes packages via yum"; return 1; }
         fi
     fi
@@ -104,6 +106,12 @@ EOF
     lib::verify_commands kubeadm kubelet kubectl
     if command -v kubeadm >/dev/null 2>&1; then
         lib::cmd kubeadm version -o short || true
+    fi
+
+    lib::log "Pre-pulling core Kubernetes images for version ${k8s_version}..."
+    if command -v kubeadm >/dev/null 2>&1; then
+        kubeadm config images pull --kubernetes-version "${k8s_version}" || \
+            lib::warn "Failed to pre-pull images. This may be due to a network issue or an older kubeadm version. Continuing..."
     fi
 
     lib::success "Kubernetes components installed"

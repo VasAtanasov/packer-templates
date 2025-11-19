@@ -315,3 +315,36 @@ variable "crio_version" {
   default     = "1.33"
   description = "CRI-O version (only used if container_runtime=cri-o)"
 }
+
+// -----------------------------------------------------------------------------
+// CNI-specific (used with k8s-node variant)
+// -----------------------------------------------------------------------------
+variable "cni_plugins_to_prepull" {
+  type        = list(string)
+  default     = ["calico", "flannel"]
+  description = "A list of CNI plugins whose images will be pre-pulled (e.g., [\"calico\", \"flannel\"])."
+}
+
+variable "cni_registry_mirror" {
+  type        = string
+  default     = ""
+  description = "Optional registry mirror to use for CNI images (e.g., 'myregistry.com')."
+}
+
+variable "cni_calico_version" {
+  type        = string
+  default     = "v3.27.3"
+  description = "Version of Calico images to pre-pull."
+}
+
+variable "cni_flannel_version" {
+  type        = string
+  default     = "v0.25.1"
+  description = "Version of the main Flannel image to pre-pull."
+}
+
+variable "cni_flannel_plugin_version" {
+  type        = string
+  default     = "v1.4.0-flannel1"
+  description = "Version of the Flannel CNI plugin image to pre-pull."
+}

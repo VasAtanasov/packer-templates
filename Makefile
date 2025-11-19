@@ -418,5 +418,5 @@ endif
 	fi; \
 	meta_path="$$box_dir/$$meta_name-$$meta_version.json"; \
 	echo -e "$(GREEN)Writing Vagrant metadata to $$meta_path$(RESET)"; \
-	printf '{\n  "name": "%s",\n  "versions": [\n    {\n      "version": "%s",\n      "providers": [\n        {\n          "name": "virtualbox",\n          "url": "file:%s"\n        }\n      ]\n    }\n  ]\n}\n' "$$meta_name" "$$meta_version" "$$box_file" > "$$meta_path"; \
+	printf '{\n  "name": "%s",\n  "versions": [\n    {\n      "version": "%s",\n      "providers": [\n        {\n          "name": "virtualbox",\n          "url": "%s"\n        }\n      ]\n    }\n  ]\n}\n' "$$meta_name" "$$meta_version" "$$box_file" > "$$meta_path"; \
 	echo -e "$(GREEN)Metadata JSON written successfully$(RESET)"

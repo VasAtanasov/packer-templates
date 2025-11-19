@@ -104,11 +104,16 @@ build {
         "LIB_OS_SH=${local.lib_os_sh[var.os_name]}",
         "VARIANT=${var.variant}",
       ],
-      # Add K8s-specific vars only for k8s-node variant
+      # Add K8s-specific and CNI-specific vars only for k8s-node variant
       var.variant == "k8s-node" ? [
         "K8S_VERSION=${var.kubernetes_version}",
         "CONTAINER_RUNTIME=${var.container_runtime}",
         "CRIO_VERSION=${var.crio_version}",
+        "CNI_PLUGINS=${join(",", var.cni_plugins_to_prepull)}",
+        "CNI_REGISTRY_MIRROR=${var.cni_registry_mirror}",
+        "CNI_CALICO_VERSION=${var.cni_calico_version}",
+        "CNI_FLANNEL_VERSION=${var.cni_flannel_version}",
+        "CNI_FLANNEL_PLUGIN_VERSION=${var.cni_flannel_plugin_version}",
       ] : []
     )
     execute_command   = local.execute_command

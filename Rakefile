@@ -656,7 +656,7 @@ task :vagrant_metadata do
           "providers": [
             {
               "name": "virtualbox",
-              "url": "file:#{box_file}"
+              "url": "#{box_file}"
             }
           ]
         }
