@@ -24,7 +24,7 @@ install_containerd() {
     export DEBIAN_FRONTEND=noninteractive
 
     lib::log "Ensuring prerequisites..."
-    lib::ensure_packages apt-transport-https ca-certificates curl gnupg lsb-release || true
+    lib::ensure_packages apt-transport-https ca-certificates curl gnupg lsb-release
 
     lib::ensure_apt_updated
 
@@ -36,7 +36,7 @@ install_containerd() {
     lib::ensure_apt_updated
 
     lib::log "Installing containerd.io..."
-    lib::ensure_packages containerd.io || true
+    lib::ensure_packages containerd.io
 
     lib::log "Configuring containerd for Kubernetes (systemd cgroup + pause image)..."
     # Create default config if missing
@@ -52,7 +52,7 @@ install_containerd() {
     # Update pause container image to version compatible with Kubernetes 1.30+
     lib::log "Updating pause container image to 3.10..."
     if grep -q 'sandbox_image.*pause:3\.[0-9]' /etc/containerd/config.toml; then
-        sed -i 's|pause:3\.[0-9]|pause:3.10|g' /etc/containerd/config.toml
+        sed -i -E 's|(sandbox_image[[:space:]]*=[[:space:]]*".*pause:)3\.[0-9]+|\13.10|' /etc/containerd/config.toml
         lib::log "Pause image updated to 3.10"
     else
         lib::log "Pause image already at correct version or not found"
@@ -73,6 +73,9 @@ install_crio() {
     lib::header "Installing CRI-O"
 
     export DEBIAN_FRONTEND=noninteractive
+
+    lib::log "Ensuring prerequisites for CRI-O..."
+    lib::ensure_packages ca-certificates curl gnupg lsb-release
 
     lib::ensure_apt_updated
 
@@ -123,11 +126,9 @@ install_docker_runtime() {
     # Docker CE APT repository
     lib::subheader "Configuring Docker CE repository"
     local dk_key="/etc/apt/keyrings/docker.gpg"
-    lib::ensure_directory "/etc/apt/keyrings"
-    if [ ! -f "$dk_key" ]; then
-        curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o "$dk_key"
-        chmod a+r "$dk_key"
-    fi
+    lib::ensure_apt_key_from_url \
+        "https://download.docker.com/linux/debian/gpg" \
+        "$dk_key"
     local arch codename
     arch="$(dpkg --print-architecture)"
     codename="$(. /etc/os-release; echo "$VERSION_CODENAME")"
@@ -183,7 +184,7 @@ main() {
             ;;
         *)
             lib::error "Unknown container runtime: $runtime"
-            lib::error "Supported runtimes: containerd, cri-o"
+            lib::error "Supported runtimes: containerd, cri-o, docker"
             return 1
             ;;
     esac

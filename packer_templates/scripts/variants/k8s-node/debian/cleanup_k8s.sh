@@ -6,6 +6,8 @@
 # Part of variant-specific provisioning - runs after k8s installation
 # =============================================================================
 
+export DEBIAN_FRONTEND=noninteractive
+
 source "${LIB_CORE_SH}"
 source "${LIB_OS_SH}"
 
@@ -59,7 +61,10 @@ lib::log "Verifying Kubernetes binaries..."
 lib::verify_commands kubectl kubeadm kubelet
 
 # Verify container runtime is still present
-case "${CONTAINER_RUNTIME}" in
+# Default to containerd if CONTAINER_RUNTIME is unset
+runtime="${CONTAINER_RUNTIME:-containerd}"
+
+case "$runtime" in
   containerd)
     lib::log "Verifying containerd..."
     lib::verify_commands containerd
@@ -75,6 +80,9 @@ case "${CONTAINER_RUNTIME}" in
     lib::verify_commands docker
     lib::verify_services docker || true
     lib::verify_services cri-docker.service || true
+    ;;
+  *)
+    lib::warn "Unknown container runtime '$runtime'; skipping runtime verification"
     ;;
 esac
 

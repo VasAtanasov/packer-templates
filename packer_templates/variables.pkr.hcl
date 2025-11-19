@@ -187,11 +187,19 @@ variable "no_proxy" {
 // Advanced Options
 // -----------------------------------------------------------------------------
 variable "sources_enabled" {
-  type = list(string)
-  default = [
-    "source.virtualbox-iso.vm"
-  ]
-  description = "Build Sources to use for building vagrant boxes"
+  type        = list(string)
+  default     = null
+  description = "Optional explicit list of sources (e.g., [\"source.virtualbox-iso.vm\"]). When null, derived from primary_source."
+}
+
+variable "primary_source" {
+  type    = string
+  default = "virtualbox-iso"
+  validation {
+    condition     = contains(["virtualbox-iso", "virtualbox-ovf"], var.primary_source)
+    error_message = "Primary source must be one of: virtualbox-iso, virtualbox-ovf."
+  }
+  description = "Primary builder source to use when sources_enabled is not explicitly set."
 }
 
 // -----------------------------------------------------------------------------
@@ -288,7 +296,7 @@ variable "variant" {
 // -----------------------------------------------------------------------------
 variable "kubernetes_version" {
   type        = string
-  default     = "1.33"
+  default     = "1.33.3"
   description = "Kubernetes version: major.minor (e.g., 1.33) installs latest patch, or major.minor.patch (e.g., 1.33.1) for specific version"
 }
 

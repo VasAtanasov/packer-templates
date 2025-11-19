@@ -96,6 +96,15 @@ endif
 			extra_vars="$$extra_vars -var=kubernetes_version=$(K8S_VERSION) -var=cpus=2 -var=memory=4096 -var=disk_size=61440"; \
 		fi; \
 	fi; \
+	if [ -n "$(PRIMARY_SOURCE)" ]; then \
+		extra_vars="$$extra_vars -var=primary_source=$(PRIMARY_SOURCE)"; \
+	fi; \
+	if [ -n "$(OVF_SOURCE_PATH)" ]; then \
+		extra_vars="$$extra_vars -var=ovf_source_path=$(OVF_SOURCE_PATH)"; \
+	fi; \
+	if [ -n "$(OVF_CHECKSUM)" ]; then \
+		extra_vars="$$extra_vars -var=ovf_checksum=$(OVF_CHECKSUM)"; \
+	fi; \
 	echo -e "$(GREEN)Building from $$var_file$(RESET)"; \
 	if [ -n "$(VARIANT)" ]; then echo -e "$(YELLOW)Variant: $(VARIANT)$(RESET)"; fi; \
 	packer build \
@@ -204,6 +213,14 @@ debian-12-arm: ## Build Debian 12 aarch64 base box
 debian-12-k8s: ## Build Debian 12 x86_64 Kubernetes node box
 	@$(MAKE) build TEMPLATE=debian/12-x86_64.pkrvars.hcl VARIANT=k8s-node
 
+.PHONY: debian-12-k8s-ovf
+debian-12-k8s-ovf: ## Build Debian 12 x86_64 Kubernetes node box from existing OVF
+	@var_file=$(PKRVARS_DIR)/debian/12-x86_64.pkrvars.hcl; \
+	os_version=$$(sed -n 's/^\s*os_version\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+	ovf_dir="ovf/packer-debian-$${os_version}-x86_64-virtualbox"; \
+	ovf_path="$$ovf_dir/debian-$${os_version}-x86_64.ovf"; \
+	$(MAKE) build TEMPLATE=debian/12-x86_64.pkrvars.hcl VARIANT=k8s-node PRIMARY_SOURCE=virtualbox-ovf OVF_SOURCE_PATH="$$ovf_path" OVF_CHECKSUM=none
+
 .PHONY: debian-12-arm-k8s
 debian-12-arm-k8s: ## Build Debian 12 aarch64 Kubernetes node box
 	@$(MAKE) build TEMPLATE=debian/12-aarch64.pkrvars.hcl VARIANT=k8s-node
@@ -286,6 +303,7 @@ check-env: ## Check environment and dependencies
 		if [ "$$vv" = "$$(printf '%s\n%s\n' "$$vv" "$(VBOX_MIN_VER)" | sort -V | tail -n1)" ]; then :; else \
 		  echo -e "$(RED)Error: VirtualBox $$vv < required $(VBOX_MIN_VER)$(RESET)"; exit 1; fi
 	@echo -e "$(GREEN)Environment check passed!$(RESET)"
+
 .PHONY: vbox-export
 vbox-export: ## Export a registered VirtualBox VM to OVA (usage: make vbox-export TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node])
 ifndef TEMPLATE
@@ -297,10 +315,18 @@ endif
 	os_name=$$(sed -n 's/^\s*os_name\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
 	os_version=$$(sed -n 's/^\s*os_version\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
 	os_arch=$$(sed -n 's/^\s*os_arch\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+	k8s_version="$(K8S_VERSION)"; \
 	variant_env="$(VARIANT)"; \
 	variant_file=$$(sed -n 's/^\s*variant\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
 	variant=$${variant_env:-$${variant_file:-base}}; \
-	box_name=$$([ "$$variant" = "base" -o -z "$$variant" ] && echo "$$os_name-$$os_version-$$os_arch" || echo "$$os_name-$$os_version-$$os_arch-$$variant"); \
+	base_box_name="$$os_name-$$os_version-$$os_arch"; \
+	if [ "$$variant" = "base" ] || [ -z "$$variant" ]; then \
+		box_name="$$base_box_name"; \
+	elif [ "$$variant" = "k8s-node" ]; then \
+		box_name="$$base_box_name-$$variant-$$k8s_version"; \
+	else \
+		box_name="$$base_box_name-$$variant"; \
+	fi; \
 	out_dir=$(BUILDS_DIR)/build_complete; \
 	mkdir -p "$$out_dir"; \
 	if VBoxManage showvminfo "$$box_name" >/dev/null 2>&1; then \
@@ -312,3 +338,85 @@ endif
 		echo -e "$(YELLOW)Build with -var=vbox_keep_registered=true, then run this target.$(RESET)"; \
 		exit 1; \
 	fi
+
+.PHONY: vagrant-add
+vagrant-add: ## Add a built box to local Vagrant (usage: make vagrant-add TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node] [BOX_ALIAS=name])
+ifndef TEMPLATE
+	@echo -e "$(RED)Error: TEMPLATE variable not set$(RESET)"
+	@echo "Usage: make vagrant-add TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node] [BOX_ALIAS=name]"
+	@exit 1
+endif
+	@var_file=$(PKRVARS_DIR)/$(TEMPLATE); \
+	os_name=$$(sed -n 's/^\s*os_name\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+	os_version=$$(sed -n 's/^\s*os_version\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+	os_arch=$$(sed -n 's/^\s*os_arch\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+	k8s_version="$(K8S_VERSION)"; \
+	variant_env="$(VARIANT)"; \
+	variant_file=$$(sed -n 's/^\s*variant\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+	variant=$${variant_env:-$${variant_file:-base}}; \
+	base_box_name="$$os_name-$$os_version-$$os_arch"; \
+	if [ "$$variant" = "base" ] || [ -z "$$variant" ]; then \
+		box_name="$$base_box_name"; \
+	elif [ "$$variant" = "k8s-node" ]; then \
+		box_name="$$base_box_name-$$variant-$$k8s_version"; \
+	else \
+		box_name="$$base_box_name-$$variant"; \
+	fi; \
+	box_path="$(BUILDS_DIR)/build_complete/$$box_name.virtualbox.box"; \
+	if [ ! -f "$$box_path" ]; then \
+		echo -e "$(RED)Box file not found: $$box_path$(RESET)"; \
+		exit 1; \
+	fi; \
+	box_alias="$(BOX_ALIAS)"; \
+	if [ -z "$$box_alias" ]; then \
+		box_alias="$$box_name"; \
+	fi; \
+	echo -e "$(GREEN)Adding box '$$box_alias' from $$box_path$(RESET)"; \
+	vagrant box add --name "$$box_alias" "$$box_path"
+
+.PHONY: vagrant-metadata
+vagrant-metadata: ## Generate Vagrant metadata JSON (usage: make vagrant-metadata TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node] [BOX_NAME=name] [BOX_VERSION=version])
+ifndef TEMPLATE
+	@echo -e "$(RED)Error: TEMPLATE variable not set$(RESET)"
+	@echo "Usage: make vagrant-metadata TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node] [BOX_NAME=name] [BOX_VERSION=version]"
+	@exit 1
+endif
+	@var_file=$(PKRVARS_DIR)/$(TEMPLATE); \
+	os_name=$$(sed -n 's/^\s*os_name\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+	os_version=$$(sed -n 's/^\s*os_version\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+	os_arch=$$(sed -n 's/^\s*os_arch\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+	k8s_version="$(K8S_VERSION)"; \
+	variant_env="$(VARIANT)"; \
+	variant_file=$$(sed -n 's/^\s*variant\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+	variant=$${variant_env:-$${variant_file:-base}}; \
+	base_box_name="$$os_name-$$os_version-$$os_arch"; \
+	if [ "$$variant" = "base" ] || [ -z "$$variant" ]; then \
+		box_name="$$base_box_name"; \
+		meta_name="$(BOX_NAME)"; \
+		if [ -z "$$meta_name" ]; then meta_name="$$box_name"; fi; \
+		meta_version="$(BOX_VERSION)"; \
+		if [ -z "$$meta_version" ]; then meta_version="0"; fi; \
+	elif [ "$$variant" = "k8s-node" ]; then \
+		box_name="$$base_box_name-$$variant-$$k8s_version"; \
+		meta_name="$(BOX_NAME)"; \
+		if [ -z "$$meta_name" ]; then meta_name="$$base_box_name-$$variant"; fi; \
+		meta_version="$(BOX_VERSION)"; \
+		if [ -z "$$meta_version" ]; then meta_version="$$k8s_version"; fi; \
+	else \
+		box_name="$$base_box_name-$$variant"; \
+		meta_name="$(BOX_NAME)"; \
+		if [ -z "$$meta_name" ]; then meta_name="$$box_name"; fi; \
+		meta_version="$(BOX_VERSION)"; \
+		if [ -z "$$meta_version" ]; then meta_version="0"; fi; \
+	fi; \
+	box_dir=$(BUILDS_DIR)/build_complete; \
+	box_file="$$box_name.virtualbox.box"; \
+	box_path="$$box_dir/$$box_file"; \
+	if [ ! -f "$$box_path" ]; then \
+		echo -e "$(RED)Box file not found: $$box_path$(RESET)"; \
+		exit 1; \
+	fi; \
+	meta_path="$$box_dir/$$meta_name-$$meta_version.json"; \
+	echo -e "$(GREEN)Writing Vagrant metadata to $$meta_path$(RESET)"; \
+	printf '{\n  "name": "%s",\n  "versions": [\n    {\n      "version": "%s",\n      "providers": [\n        {\n          "name": "virtualbox",\n          "url": "file:%s"\n        }\n      ]\n    }\n  ]\n}\n' "$$meta_name" "$$meta_version" "$$box_file" > "$$meta_path"; \
+	echo -e "$(GREEN)Metadata JSON written successfully$(RESET)"

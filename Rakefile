@@ -148,6 +148,9 @@ desc 'Build a specific box (usage: rake build TEMPLATE=debian/12-x86_64.pkrvars.
 task build: :init do
   template = ENV['TEMPLATE']
   variant = ENV['VARIANT']
+  primary_source = ENV['PRIMARY_SOURCE']
+  ovf_source_path = ENV['OVF_SOURCE_PATH']
+  ovf_checksum = ENV['OVF_CHECKSUM']
 
   unless template
     puts "#{RED}Error: TEMPLATE variable not set#{RESET}"
@@ -164,6 +167,15 @@ task build: :init do
     if variant == "k8s-node"
       extra_vars += " -var=kubernetes_version=#{k8s_version} -var=cpus=2 -var=memory=4096 -var=disk_size=61440"
     end
+  end
+  if primary_source && !primary_source.empty?
+    extra_vars += " -var=primary_source=#{primary_source}"
+  end
+  if ovf_source_path && !ovf_source_path.empty?
+    extra_vars += " -var=ovf_source_path=#{ovf_source_path}"
+  end
+  if ovf_checksum && !ovf_checksum.empty?
+    extra_vars += " -var=ovf_checksum=#{ovf_checksum}"
   end
 
   puts "#{GREEN}Building from #{var_file}#{RESET}"
@@ -292,6 +304,32 @@ task :debian_12_k8s do
   ENV['VARIANT'] = 'k8s-node'
   ENV['PROVIDER'] = 'virtualbox'
   ENV['TARGET_OS'] = 'debian'
+  Rake::Task[:build].invoke
+end
+
+desc 'Build Debian 12 x86_64 Kubernetes node box from existing OVF'
+task :debian_12_k8s_ovf do
+  var_file = File.join(PKRVARS_DIR, 'debian/12-x86_64.pkrvars.hcl')
+  unless File.exist?(var_file)
+    puts "#{RED}Var file not found: #{var_file}#{RESET}"
+    exit 1
+  end
+
+  os_version_line = File.readlines(var_file).find { |l| l =~ /^\s*os_version\s*=\s*"/ }
+  os_version = os_version_line && os_version_line[/^\s*os_version\s*=\s*"(.*?)"/, 1]
+  os_version ||= '12'
+
+  ovf_dir = "ovf/packer-debian-#{os_version}-x86_64-virtualbox"
+  ovf_path = "#{ovf_dir}/debian-#{os_version}-x86_64.ovf"
+
+  ENV['TEMPLATE'] = 'debian/12-x86_64.pkrvars.hcl'
+  ENV['VARIANT'] = 'k8s-node'
+  ENV['PRIMARY_SOURCE'] = 'virtualbox-ovf'
+  ENV['PROVIDER'] = 'virtualbox'
+  ENV['TARGET_OS'] = 'debian'
+  ENV['OVF_SOURCE_PATH'] = ovf_path
+  ENV['OVF_CHECKSUM'] = 'none'
+
   Rake::Task[:build].invoke
 end
 
@@ -449,9 +487,16 @@ task :vbox_export do
   os_arch = read_val.call('os_arch') || 'unknown'
   variant_file = read_val.call('variant') || 'base'
   variant = (variant_env && !variant_env.empty?) ? variant_env : variant_file
-  box_name = (variant == 'base' || variant.nil? || variant.empty?) ?
-               "#{os_name}-#{os_version}-#{os_arch}" :
-               "#{os_name}-#{os_version}-#{os_arch}-#{variant}"
+  k8s_ver = k8s_version
+  base_box_name = "#{os_name}-#{os_version}-#{os_arch}"
+  box_name =
+    if variant == 'base' || variant.nil? || variant.empty?
+      base_box_name
+    elsif variant == 'k8s-node'
+      "#{base_box_name}-#{variant}-#{k8s_ver}"
+    else
+      "#{base_box_name}-#{variant}"
+    end
 
   out_dir = File.join(BUILDS_DIR, 'build_complete')
   FileUtils.mkdir_p(out_dir)
@@ -476,6 +521,151 @@ task :vbox_export do
     puts "#{RED}Export failed#{RESET}"
     exit 1
   end
+end
+
+desc 'Add a built box to local Vagrant (usage: rake vagrant_add TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node] [BOX_ALIAS=name])'
+task :vagrant_add do
+  template = ENV['TEMPLATE']
+  variant_env = ENV['VARIANT']
+  box_alias_env = ENV['BOX_ALIAS']
+
+  unless template
+    puts "#{RED}Error: TEMPLATE variable not set#{RESET}"
+    puts "Usage: rake vagrant_add TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node] [BOX_ALIAS=name]"
+    exit 1
+  end
+
+  var_file = File.join(PKRVARS_DIR, template)
+  unless File.exist?(var_file)
+    puts "#{RED}Var file not found: #{var_file}#{RESET}"
+    exit 1
+  end
+
+  read_val = ->(key) do
+    line = File.readlines(var_file).find { |l| l =~ /^\s*#{key}\s*=\s*"/ }
+    line && line[/^\s*#{key}\s*=\s*"(.*?)"/, 1]
+  end
+
+  os_name = read_val.call('os_name') || 'unknown'
+  os_version = read_val.call('os_version') || 'unknown'
+  os_arch = read_val.call('os_arch') || 'unknown'
+  variant_file = read_val.call('variant') || 'base'
+  variant = (variant_env && !variant_env.empty?) ? variant_env : variant_file
+
+  k8s_ver = k8s_version
+  base_box_name = "#{os_name}-#{os_version}-#{os_arch}"
+  box_name =
+    if variant == 'base' || variant.nil? || variant.empty?
+      base_box_name
+    elsif variant == 'k8s-node'
+      "#{base_box_name}-#{variant}-#{k8s_ver}"
+    else
+      "#{base_box_name}-#{variant}"
+    end
+
+  box_path = File.join(BUILDS_DIR, 'build_complete', "#{box_name}.virtualbox.box")
+  unless File.exist?(box_path)
+    puts "#{RED}Box file not found: #{box_path}#{RESET}"
+    exit 1
+  end
+
+  box_alias = (box_alias_env && !box_alias_env.empty?) ? box_alias_env : box_name
+
+  puts "#{GREEN}Adding box '#{box_alias}' from #{box_path}#{RESET}"
+  success = system('vagrant', 'box', 'add', '--name', box_alias, box_path)
+  exit 1 unless success
+end
+
+desc 'Generate Vagrant metadata JSON (usage: rake vagrant_metadata TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node] [BOX_NAME=name] [BOX_VERSION=version])'
+task :vagrant_metadata do
+  template = ENV['TEMPLATE']
+  variant_env = ENV['VARIANT']
+  box_name_override = ENV['BOX_NAME']
+  box_version_override = ENV['BOX_VERSION']
+
+  unless template
+    puts "#{RED}Error: TEMPLATE variable not set#{RESET}"
+    puts "Usage: rake vagrant_metadata TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node] [BOX_NAME=name] [BOX_VERSION=version]"
+    exit 1
+  end
+
+  var_file = File.join(PKRVARS_DIR, template)
+  unless File.exist?(var_file)
+    puts "#{RED}Var file not found: #{var_file}#{RESET}"
+    exit 1
+  end
+
+  read_val = lambda do |key|
+    line = File.readlines(var_file).find { |l| l =~ /^\s*#{key}\s*=\s*"/ }
+    line && line[/^\s*#{key}\s*=\s*"(.*?)"/, 1]
+  end
+
+  os_name = read_val.call('os_name') || 'unknown'
+  os_version = read_val.call('os_version') || 'unknown'
+  os_arch = read_val.call('os_arch') || 'unknown'
+  variant_file = read_val.call('variant') || 'base'
+  variant = (variant_env && !variant_env.empty?) ? variant_env : variant_file
+
+  k8s_ver = k8s_version
+  base_box_name = "#{os_name}-#{os_version}-#{os_arch}"
+
+  box_name =
+    if variant == 'base' || variant.nil? || variant.empty?
+      base_box_name
+    elsif variant == 'k8s-node'
+      "#{base_box_name}-#{variant}-#{k8s_ver}"
+    else
+      "#{base_box_name}-#{variant}"
+    end
+
+  meta_name =
+    if box_name_override && !box_name_override.empty?
+      box_name_override
+    elsif variant == 'k8s-node'
+      "#{base_box_name}-#{variant}"
+    else
+      box_name
+    end
+
+  meta_version =
+    if box_version_override && !box_version_override.empty?
+      box_version_override
+    elsif variant == 'k8s-node'
+      k8s_ver
+    else
+      '0'
+    end
+
+  box_dir = File.join(BUILDS_DIR, 'build_complete')
+  box_file = "#{box_name}.virtualbox.box"
+  box_path = File.join(box_dir, box_file)
+
+  unless File.exist?(box_path)
+    puts "#{RED}Box file not found: #{box_path}#{RESET}"
+    exit 1
+  end
+
+  metadata_path = File.join(box_dir, "#{meta_name}-#{meta_version}.json")
+
+  metadata = <<~JSON
+    {
+      "name": "#{meta_name}",
+      "versions": [
+        {
+          "version": "#{meta_version}",
+          "providers": [
+            {
+              "name": "virtualbox",
+              "url": "file:#{box_file}"
+            }
+          ]
+        }
+      ]
+    }
+  JSON
+
+  File.write(metadata_path, metadata)
+  puts "#{GREEN}Wrote Vagrant metadata: #{metadata_path}#{RESET}"
 end
 
 desc 'Check environment and dependencies'

@@ -6,8 +6,8 @@
 // =============================================================================
 
 build {
-  // Use all enabled sources from variable
-  sources = var.sources_enabled
+  // Use all enabled sources (explicit list, or derived from primary_source)
+  sources = local.enabled_sources
 
   // ===========================================================================
   // File Upload: Scripts Tree

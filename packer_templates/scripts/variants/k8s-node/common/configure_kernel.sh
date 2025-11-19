@@ -16,23 +16,14 @@ lib::require_root
 main() {
     lib::header "Configuring kernel for Kubernetes"
 
-    export DEBIAN_FRONTEND=noninteractive
-
     # Ensure kernel modules are loaded at boot
     local modules_file="/etc/modules-load.d/k8s.conf"
     lib::ensure_directory "$(dirname "$modules_file")"
 
-    if [ ! -f "$modules_file" ] || ! grep -q "br_netfilter" "$modules_file"; then
-        lib::log "Creating kernel modules configuration..."
-        cat > "$modules_file" <<EOF
-# Kernel modules required for Kubernetes networking
-overlay
-br_netfilter
-EOF
-        lib::log "Kernel modules configuration created"
-    else
-        lib::log "Kernel modules already configured"
-    fi
+    lib::log "Ensuring kernel modules configuration..."
+    lib::ensure_line_in_file "# Kernel modules required for Kubernetes networking" "$modules_file"
+    lib::ensure_line_in_file "overlay" "$modules_file"
+    lib::ensure_line_in_file "br_netfilter" "$modules_file"
 
     # Verify modules are loaded
     lib::log "Verifying kernel modules..."
@@ -46,4 +37,3 @@ EOF
 }
 
 main "$@"
-

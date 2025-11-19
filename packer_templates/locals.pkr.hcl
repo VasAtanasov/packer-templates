@@ -8,10 +8,14 @@ locals {
   // -----------------------------------------------------------------------------
   // Provider Detection
   // -----------------------------------------------------------------------------
-  source_names = [for source in var.sources_enabled : trimprefix(source, "source.")]
+  enabled_sources = var.sources_enabled != null ? var.sources_enabled : [
+    "source.${var.primary_source}.vm"
+  ]
+
+  source_names = [for source in local.enabled_sources : trimprefix(source, "source.")]
 
   // Extract provider type from enabled sources (e.g., "virtualbox-iso" from "source.virtualbox-iso.vm")
-  active_providers = [for source in var.sources_enabled : split(".", source)[1]]
+  active_providers = [for source in local.enabled_sources : split(".", source)[1]]
 
   // Provider family normalization for multi-source builds
   provider_family_map = {
@@ -34,7 +38,18 @@ locals {
   // -----------------------------------------------------------------------------
   // Box Naming
   // -----------------------------------------------------------------------------
-  box_name = var.variant == "base" ? "${var.os_name}-${var.os_version}-${var.os_arch}" : "${var.os_name}-${var.os_version}-${var.os_arch}-${var.variant}"
+  // Base box name (OS + full version + arch)
+  base_box_name = "${var.os_name}-${var.os_version}-${var.os_arch}"
+
+  // Full box name:
+  // - base:       <os_name>-<os_version>-<os_arch>
+  // - k8s-node:   <os_name>-<os_version>-<os_arch>-k8s-node-<kubernetes_version>
+  // - other vars: <os_name>-<os_version>-<os_arch>-<variant>
+  box_name = var.variant == "base" ? local.base_box_name : (
+    var.variant == "k8s-node"
+    ? "${local.base_box_name}-${var.variant}-${var.kubernetes_version}"
+    : "${local.base_box_name}-${var.variant}"
+  )
 
   // -----------------------------------------------------------------------------
   // Paths
@@ -96,7 +111,6 @@ locals {
         "${path.root}/scripts/variants/k8s-node/${local.os_family}/install_kubernetes.sh",
       ],
       [
-        "${path.root}/scripts/variants/k8s-node/common/configure_networking.sh",
         "${path.root}/scripts/variants/k8s-node/${local.os_family}/cleanup_k8s.sh",
       ],
     )

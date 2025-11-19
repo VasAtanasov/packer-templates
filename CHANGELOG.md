@@ -34,6 +34,10 @@ and this project adheres to Semantic Versioning where practical.
 - Script staging: normalize CRLF to LF for all staged shell scripts.
 - docs: packer_templates/scripts/custom/README.md v1.1.0 – add Custom Scripts Best Practices, metadata header, and
   per‑doc changelog.
+- New doc: `doc/packer-vagrant-helper-commands.md` v1.0.0 – common helper commands for Packer/Make/Rake/Vagrant flows.
+- Make/Rake: `debian-12-k8s-ovf`/`debian_12_k8s_ovf` quick build targets to build Debian 12 k8s-node boxes from existing VirtualBox OVFs.
+- Make/Rake: `vagrant-add`/`vagrant_add` helpers to register built boxes into the local Vagrant box repository using computed names.
+- Make/Rake: `vagrant-metadata`/`vagrant_metadata` helpers to generate Vagrant box metadata JSON files so box versions can track Kubernetes versions.
 
 ### Changed
 
@@ -74,6 +78,9 @@ and this project adheres to Semantic Versioning where practical.
   CI/WSL/dev environments without initialized plugins).
 - Custom scripts discovery now only includes files matching `??-*.sh` (two-digit prefix), reducing accidental execution;
   provider gating relies on `PACKER_BUILDER_TYPE`.
+- Packer locals: `box_name` now appends the Kubernetes version for `k8s-node` variants (`<os>-<version>-<arch>-k8s-node-<kubernetes_version>`), enabling per-k8s-version box artifacts.
+- Makefile/Rakefile: `build` can now pass `PRIMARY_SOURCE`/`OVF_SOURCE_PATH`/`OVF_CHECKSUM` through to Packer, enabling the `virtualbox-ovf` source flow from both tools.
+- Makefile/Rakefile: `vbox-export`/`vbox_export` now derive VM names using the same versioned naming convention as Packer, including the Kubernetes version for k8s-node builds.
 
 ### Removed
 
