@@ -69,6 +69,15 @@ install_containerd() {
         sed -i 's/^\(\s*SystemdCgroup\)\s*=\s*false/\1 = true/' /etc/containerd/config.toml || true
     fi
 
+    # Update pause container image to version compatible with Kubernetes 1.30+
+    lib::log "Updating pause container image to 3.10..."
+    if grep -q 'sandbox_image.*pause:3\.[0-9]' /etc/containerd/config.toml; then
+        sed -i 's|pause:3\.[0-9]|pause:3.10|g' /etc/containerd/config.toml
+        lib::log "Pause image updated to 3.10"
+    else
+        lib::log "Pause image already at correct version or not found"
+    fi
+
     # Enable and start service
     lib::ensure_service containerd
 

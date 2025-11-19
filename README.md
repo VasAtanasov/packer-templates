@@ -1,7 +1,7 @@
 ---
 title: Packer Vagrant Box Builder (Multi-Provider)
 status: Active
-version: 3.0.0
+version: 3.0.1
 scope: Consolidated template structure for building Vagrant boxes
 ---
 
@@ -119,11 +119,19 @@ packer build \
   -var-file=os_pkrvars/debian/12-x86_64.pkrvars.hcl \
   packer_templates/
 
-# With variant
+# With variant (latest patch from 1.33 release)
 packer build \
   -var-file=os_pkrvars/debian/12-x86_64.pkrvars.hcl \
   -var=variant=k8s-node \
   -var=kubernetes_version=1.33 \
+  -var=cpus=2 -var=memory=4096 -var=disk_size=61440 \
+  packer_templates/
+
+# With variant (specific patch version)
+packer build \
+  -var-file=os_pkrvars/debian/12-x86_64.pkrvars.hcl \
+  -var=variant=k8s-node \
+  -var=kubernetes_version=1.33.1 \
   -var=cpus=2 -var=memory=4096 -var=disk_size=61440 \
   packer_templates/
 ```
@@ -322,6 +330,16 @@ When making changes:
 4. Test on both x86_64 and aarch64 when possible
 5. Update this README and CHANGELOG; add Doc Changelog entry to modified docs
 
+## Related projects
+
+A huge thank you to these related projects from which we've taken inspiration and often used as a source for workarounds
+in complex world of base box building.
+
+- <https://github.com/chef/bento>
+- <https://github.com/boxcutter>
+- <https://github.com/lavabit/robox>
+- <https://github.com/mcandre/packer-templates>
+
 ## Resources
 
 - Packer: https://www.packer.io/docs
@@ -330,8 +348,9 @@ When making changes:
 
 | Version | Date       | Changes                                                                                                                                                                                                                                   |
 |---------|------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 3.0.0   | 2025-11-17 | **BREAKING**: Consolidated template structure; all `.pkr.hcl` files now in `packer_templates/` root; updated all paths, build commands, and architecture sections; simplified provider/OS workflow.                                      |
-| 2.2.0   | 2025-11-14 | Changed: Variants now use per-OS subdirectories; providers/virtualbox prepared for multi‑OS (common + per‑OS wrappers); updated directory structure and dynamic examples.                                                                                              |
+| 3.0.1   | 2025-11-18 | Related projects section added; minor formatting fixes.                                                                                                                                                                                   |
+| 3.0.0   | 2025-11-17 | Consolidated template structure; all `.pkr.hcl` files now in `packer_templates/` root; updated all paths, build commands, and architecture sections; simplified provider/OS workflow.                                                     |
+| 2.2.0   | 2025-11-14 | Changed: Variants now use per-OS subdirectories; providers/virtualbox prepared for multi‑OS (common + per‑OS wrappers); updated directory structure and dynamic examples.                                                                 |
 | 2.1.0   | 2025-11-14 | Changed: Switch to modular libraries (`lib-core.sh`, `lib-debian.sh`, `lib-rhel.sh`); updated provisioning notes and directory structure.                                                                                                 |
 | 2.0.0   | 2025-11-13 | Provider × OS matrix restructure; simplified variable files (12-x86_64.pkrvars.hcl); variant-via-flags approach; updated all command examples and architecture documentation; added Windows compatibility notes (TARGET_OS, quote fixes). |
 | 1.3.0   | 2025-11-13 | Align with current repo state; host-agnostic; GA policy; docs parity                                                                                                                                                                      |

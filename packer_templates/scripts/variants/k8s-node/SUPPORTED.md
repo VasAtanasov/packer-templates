@@ -37,7 +37,7 @@ Packer selects the appropriate OS-specific scripts at build time using a compute
 - `LIB_DIR=/usr/local/lib/scripts`
 - `LIB_CORE_SH=/usr/local/lib/scripts/_common/lib-core.sh`
 - `LIB_OS_SH=/usr/local/lib/scripts/_common/lib-debian.sh` (Debian) or `lib-rhel.sh` (RHEL)
-- `K8S_VERSION` (e.g., `1.28`)
+- `K8S_VERSION` - Kubernetes version: `1.28` (major.minor, latest patch) or `1.28.5` (specific patch version)
 - `CONTAINER_RUNTIME` (`containerd` or `cri-o`)
 - `CRIO_VERSION` (e.g., `1.28`, when `CONTAINER_RUNTIME=cri-o`)
 

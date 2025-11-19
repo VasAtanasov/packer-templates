@@ -16,17 +16,29 @@ main() {
     lib::header "Installing Kubernetes components"
 
     export DEBIAN_FRONTEND=noninteractive
+    lib::ensure_apt_updated
+    lib::ensure_packages apt-transport-https ca-certificates curl gnupg
 
     local k8s_version="${K8S_VERSION:-1.28}"
     lib::log "Kubernetes version: $k8s_version"
 
-    # Add Kubernetes APT repository
-    lib::log "Adding Kubernetes repository..."
+    # Extract major.minor version for repository (e.g., "1.28" from "1.28.5")
+    local k8s_repo_version
+    k8s_repo_version=$(echo "$k8s_version" | grep -oE '^[0-9]+\.[0-9]+')
+
+    if [ -z "$k8s_repo_version" ]; then
+        lib::error "Invalid Kubernetes version format: $k8s_version"
+        lib::error "Expected format: major.minor (e.g., 1.28) or major.minor.patch (e.g., 1.28.5)"
+        return 1
+    fi
+
+    # Add Kubernetes APT repository (always uses major.minor)
+    lib::log "Adding Kubernetes repository for v${k8s_repo_version}..."
     local keyring="/etc/apt/keyrings/kubernetes-apt-keyring.gpg"
-    local repo_url="https://pkgs.k8s.io/core:/stable:/v${k8s_version}/deb"
+    local repo_url="https://pkgs.k8s.io/core:/stable:/v${k8s_repo_version}/deb"
 
     lib::ensure_apt_key_from_url \
-        "https://pkgs.k8s.io/core:/stable:/v${k8s_version}/deb/Release.key" \
+        "https://pkgs.k8s.io/core:/stable:/v${k8s_repo_version}/deb/Release.key" \
         "$keyring"
 
     lib::ensure_apt_source_file \
@@ -34,9 +46,38 @@ main() {
         "deb [signed-by=${keyring}] ${repo_url}/ /"
 
     # Install Kubernetes components
-    lib::log "Installing kubeadm, kubelet, kubectl..."
     lib::ensure_apt_updated
-    lib::ensure_packages kubeadm kubelet kubectl
+
+    # Check if patch version is specified (e.g., 1.28.5)
+    if [[ "$k8s_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        lib::log "Installing Kubernetes ${k8s_version} (specific patch version)..."
+        lib::log "Package version pattern: ${k8s_version}-*"
+
+        # Install specific patch version with wildcard for package revision
+        # This matches packages like kubectl=1.28.5-1.1, kubectl=1.28.5-2.1, etc.
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get install -y \
+            "kubeadm=${k8s_version}-*" \
+            "kubelet=${k8s_version}-*" \
+            "kubectl=${k8s_version}-*" || {
+            lib::error "Failed to install Kubernetes ${k8s_version}"
+            lib::error "Version may not exist in repository. Available versions:"
+            apt-cache madison kubeadm | head -n 5
+            return 1
+        }
+    else
+        lib::log "Installing latest Kubernetes from ${k8s_repo_version} repository..."
+        lib::ensure_packages kubeadm kubelet kubectl
+    fi
+
+    lib::log "Enabling bash completion for kubectl..."
+    lib::ensure_directory "/etc/bash_completion.d"
+    if command -v kubectl >/dev/null 2>&1; then
+        kubectl completion bash > /etc/bash_completion.d/kubectl || \
+            lib::warn "Failed to write kubectl bash completion"
+    else
+        lib::warn "kubectl not found after installation; skipping bash completion setup"
+    fi
 
     # Hold packages to prevent automatic updates
     lib::log "Pinning Kubernetes packages..."

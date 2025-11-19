@@ -14,30 +14,59 @@ lib::require_root
 install_containerd() {
     lib::header "Installing containerd"
 
+    if lib::pkg_installed containerd.io || lib::pkg_installed containerd; then
+        if lib::systemd_active containerd; then
+            lib::success "containerd already installed and active, skipping..."
+            return 0
+        fi
+    fi
+
     export DEBIAN_FRONTEND=noninteractive
+
+    lib::log "Ensuring prerequisites..."
+    lib::ensure_packages apt-transport-https ca-certificates curl gnupg lsb-release || true
 
     lib::ensure_apt_updated
 
-    # Install and configure containerd (Debian package name is 'containerd')
-    lib::ensure_packages containerd
+    lib::ensure_apt_key_from_url https://download.docker.com/linux/debian/gpg /etc/apt/keyrings/docker.gpg
 
+    lib::log "Adding Docker APT repository (idempotent)..."
+    lib::ensure_apt_source_file /etc/apt/sources.list.d/docker.list \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable"
+    lib::ensure_apt_updated
+
+    lib::log "Installing containerd.io..."
+    lib::ensure_packages containerd.io || true
+
+    lib::log "Configuring containerd for Kubernetes (systemd cgroup + pause image)..."
     # Create default config if missing
-    if [ ! -f /etc/containerd/config.toml ]; then
-        lib::log "Generating containerd default configuration..."
-        mkdir -p /etc/containerd
-        containerd config default > /etc/containerd/config.toml
-    fi
+    lib::log "Generating containerd default configuration..."
+    lib::ensure_directory "/etc/containerd"
+    containerd config default > /etc/containerd/config.toml
 
     # Ensure systemd cgroup driver
-    if ! grep -q "SystemdCgroup = true" /etc/containerd/config.toml; then
-        lib::log "Setting SystemdCgroup=true in containerd config"
-        sed -i 's/^\(\s*SystemdCgroup\) = false/\1 = true/' /etc/containerd/config.toml || true
+    if grep -q '^[[:space:]]*SystemdCgroup[[:space:]]*=[[:space:]]*false' /etc/containerd/config.toml; then
+        sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
     fi
 
-    # Enable and start containerd
-    lib::ensure_service containerd
+    # Update pause container image to version compatible with Kubernetes 1.30+
+    lib::log "Updating pause container image to 3.10..."
+    if grep -q 'sandbox_image.*pause:3\.[0-9]' /etc/containerd/config.toml; then
+        sed -i 's|pause:3\.[0-9]|pause:3.10|g' /etc/containerd/config.toml
+        lib::log "Pause image updated to 3.10"
+    else
+        lib::log "Pause image already at correct version or not found"
+    fi
 
-    lib::success "containerd installed and configured"
+
+    lib::log "Enabling and (re)starting containerd service..."
+    lib::ensure_service containerd || true
+    systemctl restart containerd
+    
+    lib::log "Verifying containerd installation..."
+    systemctl is-active containerd >/dev/null 2>&1 || { lib::error "containerd not active"; exit 1; }
+
+    lib::success "containerd installed and configured successfully."
 }
 
 install_crio() {

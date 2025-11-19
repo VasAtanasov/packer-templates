@@ -289,7 +289,7 @@ variable "variant" {
 variable "kubernetes_version" {
   type        = string
   default     = "1.33"
-  description = "Kubernetes major.minor version (e.g., 1.33)"
+  description = "Kubernetes version: major.minor (e.g., 1.33) installs latest patch, or major.minor.patch (e.g., 1.33.1) for specific version"
 }
 
 variable "container_runtime" {

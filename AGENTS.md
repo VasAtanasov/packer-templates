@@ -70,7 +70,7 @@ make debug              # Show configuration (PROVIDER, TARGET_OS, template dir,
 PROVIDER=virtualbox     # Provider to use (default: virtualbox)
 TARGET_OS=debian        # Operating system to build (default: debian; NOTE: uses TARGET_OS not OS to avoid Windows conflict)
 VARIANT=k8s-node        # Variant to build (base, k8s-node, docker-host)
-K8S_VERSION=1.33        # Kubernetes version for k8s-node variant
+K8S_VERSION=1.33        # Kubernetes version: major.minor (latest patch) or major.minor.patch (specific version)
 ```
 
 ### Manual Build (from command line)
@@ -79,11 +79,19 @@ K8S_VERSION=1.33        # Kubernetes version for k8s-node variant
 # Base box
 packer build -var-file=os_pkrvars/debian/12-x86_64.pkrvars.hcl packer_templates/
 
-# With variant
+# With variant (latest patch from 1.33 release)
 packer build \
   -var-file=os_pkrvars/debian/12-x86_64.pkrvars.hcl \
   -var='variant=k8s-node' \
   -var='kubernetes_version=1.33' \
+  -var='cpus=2' -var='memory=4096' -var='disk_size=61440' \
+  packer_templates/
+
+# With variant (specific patch version)
+packer build \
+  -var-file=os_pkrvars/debian/12-x86_64.pkrvars.hcl \
+  -var='variant=k8s-node' \
+  -var='kubernetes_version=1.33.1' \
   -var='cpus=2' -var='memory=4096' -var='disk_size=61440' \
   packer_templates/
 ```
