@@ -116,6 +116,31 @@ cd builds/build_complete
 vagrant box add ./debian-12.12-x86_64-k8s-node-1.33.3.json
 ```
 
+## AlmaLinux 9 k8s-node (PowerShell)
+
+Build from existing OVF:
+
+```powershell
+rake almalinux_9_k8s_ovf K8S_VERSION=1.33.3
+```
+
+Generate metadata JSON (version = `K8S_VERSION`):
+
+```powershell
+rake vagrant_metadata `
+  TEMPLATE=almalinux/9-x86_64.pkrvars.hcl `
+  VARIANT=k8s-node `
+  K8S_VERSION=1.33.3
+```
+
+Add to Vagrant (run from `builds\build_complete`):
+
+```powershell
+Set-Location C:\Users\v.atanasov\softuni\packer\builds\build_complete
+
+vagrant box add .\almalinux-9.6-x86_64-k8s-node-1.33.3.json
+```
+
 ## Doc Changelog
 
 | Version | Date       | Changes                                                               |

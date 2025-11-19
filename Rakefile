@@ -410,6 +410,32 @@ task :almalinux_9_arm do
   Rake::Task[:build].invoke
 end
 
+desc 'Build AlmaLinux 9 x86_64 Kubernetes node box from existing OVF'
+task :almalinux_9_k8s_ovf do
+  var_file = File.join(PKRVARS_DIR, 'almalinux/9-x86_64.pkrvars.hcl')
+  unless File.exist?(var_file)
+    puts "#{RED}Var file not found: #{var_file}#{RESET}"
+    exit 1
+  end
+
+  os_version_line = File.readlines(var_file).find { |l| l =~ /^\s*os_version\s*=\s*"/ }
+  os_version = os_version_line && os_version_line[/^\s*os_version\s*=\s*"(.*?)"/, 1]
+  os_version ||= '9'
+
+  ovf_dir = "ovf/packer-almalinux-#{os_version}-x86_64-virtualbox"
+  ovf_path = "#{ovf_dir}/almalinux-#{os_version}-x86_64.ovf"
+
+  ENV['TEMPLATE'] = 'almalinux/9-x86_64.pkrvars.hcl'
+  ENV['VARIANT'] = 'k8s-node'
+  ENV['PRIMARY_SOURCE'] = 'virtualbox-ovf'
+  ENV['PROVIDER'] = 'virtualbox'
+  ENV['TARGET_OS'] = 'almalinux'
+  ENV['OVF_SOURCE_PATH'] = ovf_path
+  ENV['OVF_CHECKSUM'] = 'none'
+
+  Rake::Task[:build].invoke
+end
+
 desc 'Build AlmaLinux 10 x86_64 base box'
 task :almalinux_10 do
   ENV['TEMPLATE'] = 'almalinux/10-x86_64.pkrvars.hcl'

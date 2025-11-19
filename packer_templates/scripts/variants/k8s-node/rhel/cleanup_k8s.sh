@@ -17,9 +17,9 @@ lib::header "Kubernetes Variant Cleanup (RHEL family)"
 # Remove build toolchains and headers if present
 lib::subheader "Removing build dependencies"
 if command -v dnf >/dev/null 2>&1; then
-  dnf remove -y gcc cpp make kernel-headers kernel-devel kernel-uek-devel dkms 2>/dev/null || true
+  dnf remove -y gcc cpp make kernel-headers kernel-devel dkms 2>/dev/null || true
 else
-  yum remove -y gcc cpp make kernel-headers kernel-devel kernel-uek-devel dkms 2>/dev/null || true
+  yum remove -y gcc cpp make kernel-headers kernel-devel dkms 2>/dev/null || true
 fi
 
 # Clean temporary files

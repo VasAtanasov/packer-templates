@@ -40,23 +40,12 @@ install_containerd() {
 
     lib::log "Configuring containerd for Kubernetes (systemd cgroup + pause image)..."
     # Create default config if missing
-    lib::log "Generating containerd default configuration..."
+    lib::log "Generating and configuring containerd default configuration..."
     lib::ensure_directory "/etc/containerd"
-    containerd config default > /etc/containerd/config.toml
-
-    # Ensure systemd cgroup driver
-    if grep -q '^[[:space:]]*SystemdCgroup[[:space:]]*=[[:space:]]*false' /etc/containerd/config.toml; then
-        sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
-    fi
-
-    # Update pause container image to version compatible with Kubernetes 1.30+
-    lib::log "Updating pause container image to 3.10..."
-    if grep -q 'sandbox_image.*pause:3\.[0-9]' /etc/containerd/config.toml; then
-        sed -i -E 's|(sandbox_image[[:space:]]*=[[:space:]]*".*pause:)3\.[0-9]+|\13.10|' /etc/containerd/config.toml
-        lib::log "Pause image updated to 3.10"
-    else
-        lib::log "Pause image already at correct version or not found"
-    fi
+    containerd config default \
+      | sed 's/SystemdCgroup = false/SystemdCgroup = true/' \
+      | sed -E 's|(sandbox_image[[:space:]]*=[[:space:]]*".*pause:)3\.[0-9]+|\13.10|' \
+      > /etc/containerd/config.toml
 
 
     lib::log "Enabling and (re)starting containerd service..."

@@ -32,6 +32,16 @@ main() {
     # Apply sysctl params without reboot
     sysctl --system >/dev/null 2>&1 || true
 
+    # Disable firewall (common on RHEL-family distros)
+    lib::log "Disabling firewall..."
+    if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet firewalld; then
+        systemctl stop firewalld
+        systemctl disable firewalld
+        lib::success "Firewall (firewalld) disabled."
+    else
+        lib::log "Firewall (firewalld) not active or not found. Skipping."
+    fi
+
     lib::success "System prepared for Kubernetes"
 }
 

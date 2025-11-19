@@ -47,7 +47,7 @@ main() {
   lib::success "Successfully generated CNI manifest config."
   lib::log "Contents of ${CONFIG_FILE}:"
   # Indent the cat output for better log readability
-  cat "${CONFIG_FILE}" | sed 's/^/    /' | lib::log
+  sed 's/^/    /' "${CONFIG_FILE}"
 }
 
 main "$@"

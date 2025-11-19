@@ -259,6 +259,14 @@ almalinux-9: ## Build AlmaLinux 9 x86_64 base box
 almalinux-9-arm: ## Build AlmaLinux 9 aarch64 base box
 	@$(MAKE) build TEMPLATE=almalinux/9-aarch64.pkrvars.hcl PROVIDER=virtualbox TARGET_OS=almalinux
 
+.PHONY: almalinux-9-k8s-ovf
+almalinux-9-k8s-ovf: ## Build AlmaLinux 9 x86_64 Kubernetes node box from existing OVF
+	@var_file=$(PKRVARS_DIR)/almalinux/9-x86_64.pkrvars.hcl; \
+	os_version=$$(sed -n 's/^\s*os_version\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+	ovf_dir="ovf/packer-almalinux-$${os_version}-x86_64-virtualbox"; \
+	ovf_path="$$ovf_dir/almalinux-$${os_version}-x86_64.ovf"; \
+	$(MAKE) build TEMPLATE=almalinux/9-x86_64.pkrvars.hcl VARIANT=k8s-node PRIMARY_SOURCE=virtualbox-ovf OVF_SOURCE_PATH="$$ovf_path" OVF_CHECKSUM=none PROVIDER=virtualbox TARGET_OS=almalinux
+
 .PHONY: almalinux-10
 almalinux-10: ## Build AlmaLinux 10 x86_64 base box
 	@$(MAKE) build TEMPLATE=almalinux/10-x86_64.pkrvars.hcl PROVIDER=virtualbox TARGET_OS=almalinux
