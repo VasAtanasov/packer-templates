@@ -87,14 +87,42 @@ install_containerd() {
 install_crio() {
     lib::header "Installing CRI-O (RHEL family)"
 
-    local crio_version="${CRIO_VERSION:-1.33}"
-    lib::log "Requested CRI-O version: ${crio_version}"
+    if ! command -v dnf >/dev/null 2>&1; then
+        lib::error "dnf not found; this script targets EL8/EL9 (dnf-based)"
+        return 1
+    fi
 
-    # NOTE: CRI-O on RHEL-family requires external repositories (Kubic).
-    # To avoid brittle hardcoding, this repo currently recommends containerd on RHEL.
-    lib::error "CRI-O installation on RHEL is not yet implemented in this repo."
-    lib::error "Please set CONTAINER_RUNTIME=containerd (default) or extend this script with Kubic repos."
-    return 1
+    lib::ensure_yum_dnf_updated
+
+    # CRIO_VERSION comes from Packer vars, default to 1.28 to align with Debian
+    local crio_version="${CRIO_VERSION:-1.28}"
+
+    lib::log "Configuring CRI-O v${crio_version}"
+
+    # Configure CRI-O repo (pkgs.k8s.io)
+    lib::subheader "Configuring CRI-O yum repo"
+    local repo_file="/etc/yum.repos.d/crio.repo"
+    local baseurl="https://pkgs.k8s.io/addons:/cri-o:/stable:/v${crio_version}/rpm/"
+    local gpgkey="${baseurl}repodata/repomd.xml.key"
+
+    read -r -d '' repo_content <<EOF || true
+[crio]
+name=CRI-O
+baseurl=${baseurl}
+enabled=1
+gpgcheck=1
+gpgkey=${gpgkey}
+EOF
+    lib::ensure_yum_dnf_repo_file "$repo_file" "$repo_content"
+    lib::ensure_yum_dnf_updated
+
+    # Install packages
+    lib::ensure_packages cri-o cri-tools
+
+    # Enable and start services
+    lib::ensure_service crio
+
+    lib::success "CRI-O installed and configured"
 }
 
 install_docker_runtime() {

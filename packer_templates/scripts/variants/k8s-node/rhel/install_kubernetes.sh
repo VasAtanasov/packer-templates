@@ -20,7 +20,7 @@ main() {
     lib::ensure_yum_dnf_updated
     lib::ensure_packages ca-certificates curl gnupg2
 
-    local k8s_version="${K8S_VERSION:-1.33}"
+    local k8s_version="${K8S_VERSION:-1.28}"
     lib::log "Kubernetes version: ${k8s_version}"
 
     # Extract major.minor version for repository (e.g., "1.28" from "1.28.5")
@@ -96,6 +96,16 @@ EOF
             yum install -y kubelet kubeadm kubectl cri-tools --disableexcludes=kubernetes >/dev/null 2>&1 || {
                 lib::error "Failed to install Kubernetes packages via yum"; return 1; }
         fi
+    fi
+
+    lib::log "Enabling bash completion for kubectl..."
+    lib::ensure_packages bash-completion
+    lib::ensure_directory "/etc/bash_completion.d"
+    if command -v kubectl >/dev/null 2>&1; then
+        kubectl completion bash > /etc/bash_completion.d/kubectl || \
+            lib::warn "Failed to write kubectl bash completion"
+    else
+        lib::warn "kubectl not found after installation; skipping bash completion setup"
     fi
 
     # Enable kubelet (expected to stay inactive until kubeadm init/join)
