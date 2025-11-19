@@ -5,21 +5,6 @@
 // =============================================================================
 
 // -----------------------------------------------------------------------------
-// Platform Detection
-// -----------------------------------------------------------------------------
-variable "os_env" {
-  type        = string
-  default     = env("OS")
-  description = "Host OS environment variable (auto-detected)"
-}
-
-variable "packer_executable" {
-  type        = string
-  default     = "packer"
-  description = "Packer executable name (used for platform detection)"
-}
-
-// -----------------------------------------------------------------------------
 // Provider Selection
 // -----------------------------------------------------------------------------
 variable "provider" {

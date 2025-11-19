@@ -456,22 +456,38 @@ fi
 
 if ! declare -F lib::ensure_sysctl >/dev/null 2>&1; then
 lib::ensure_sysctl() {
+    lib::log "DEBUG: Executing v2 of lib::ensure_sysctl"
     local param=$1 value=$2
-    local current; current=$(sysctl -n "$param" 2>/dev/null || echo "")
-    if [ "$current" = "$value" ]; then
-        lib::log "sysctl $param = $value"
-        return 0
-    fi
-    lib::log "Setting sysctl $param=$value..."
-    sysctl -w "$param=$value" >/dev/null 2>&1 || true
     local sysctl_file="/etc/sysctl.d/k8s.conf"
+    local line="${param} = ${value}"
+
     lib::ensure_directory "$(dirname "$sysctl_file")"
-    if ! grep -q "^$param" "$sysctl_file" 2>/dev/null; then
-        echo "$param = $value" >> "$sysctl_file"
+
+    # Check if the line is already correctly in the file.
+    # The -x option to grep matches the whole line. -F treats the string literally.
+    if [ -f "$sysctl_file" ] && grep -q -x -F "${line}" "${sysctl_file}"; then
+        lib::log "sysctl '${line}' already persisted in ${sysctl_file}"
     else
-        sed -i "s|^$param\b.*|$param = $value|" "$sysctl_file"
+        lib::log "Ensuring sysctl '${line}' is persisted in ${sysctl_file}..."
+        # Remove any old, incorrect entry for this parameter to avoid duplicates.
+        if [ -f "$sysctl_file" ]; then
+            sed -i "/^${param}[[:space:]]*=/d" "${sysctl_file}"
+        fi
+        # Add the new, correct line.
+        echo "${line}" >> "${sysctl_file}"
+        lib::log "sysctl parameter persisted."
     fi
-    lib::log "sysctl parameter set"
+
+    # After ensuring persistence, check and set the live kernel value if needed.
+    local current; current=$(sysctl -n "$param" 2>/dev/null || echo "")
+    if [ "$current" != "$value" ]; then
+        lib::log "Applying live sysctl value: ${param} = ${value}"
+        if ! sysctl -w "${param}=${value}" >/dev/null 2>&1; then
+            lib::warn "Failed to set live sysctl value for ${param}. Applying from file."
+            # As a fallback, try to apply all settings from the file.
+            sysctl -p "${sysctl_file}" >/dev/null 2>&1 || true
+        fi
+    fi
 }
 fi
 
