@@ -1,5 +1,5 @@
 title: k8s-node Variant Support Matrix
-version: 0.1.0
+version: 0.3.0
 status: Active
 scope: OS support and script layout for k8s-node variant
 
@@ -26,9 +26,9 @@ variants/k8s-node/
 
 ## Supported OS Families
 
-- Debian family: Debian 12, Debian 13 (x86_64, aarch64)
+- Debian family: Debian 12, Debian 13 (x86_64)
 - Ubuntu family: Planned
-- RHEL family (RHEL/AlmaLinux/Rocky): Implemented (containerd, docker via cri-dockerd)
+- RHEL family: AlmaLinux 9 (x86_64) (containerd, docker via cri-dockerd)
 
 Packer selects the appropriate OS-specific scripts at build time using a computed `os_family` derived from `os_name`.
 
@@ -48,7 +48,8 @@ Packer selects the appropriate OS-specific scripts at build time using a compute
 
 ## Doc Changelog
 
-| Version | Date       | Changes                                      |
-|---------|------------|----------------------------------------------|
-| 0.2.0   | 2025-11-17 | Add RHEL-family implementation (containerd runtime).   |
-| 0.1.0   | 2025-11-14 | Initial support matrix and layout structure.           |
+| Version | Date       | Changes                                                            |
+|---------|------------|--------------------------------------------------------------------|
+| 0.3.0   | 2025-11-20 | Removed aarch64 support and updated RHEL family to AlmaLinux 9.    |
+| 0.2.0   | 2025-11-17 | Add RHEL-family implementation (containerd runtime).                 |
+| 0.1.0   | 2025-11-14 | Initial support matrix and layout structure.                         |

@@ -1,6 +1,6 @@
 ---
 title: Bash Script Tests
-version: 1.2.0
+version: 1.3.0
 status: Active
 scope: tests/scripts
 ---
@@ -38,7 +38,7 @@ VAGRANT_VAGRANTFILE=Vagrantfile.test vagrant destroy -f
 
 | Version | Date       | Changes                                                       |
 |---------|------------|---------------------------------------------------------------|
+| 1.3.0   | 2025-11-20 | Reviewed and confirmed guidance after recent build script changes. |
 | 1.2.0   | 2025-11-14 | Switched docs to modular libraries (LIB_CORE_SH, LIB_OS_SH).  |
 | 1.1.0   | 2025-11-13 | Added environment variables for flexible script path testing |
 | 1.0.0   | 2025-11-13 | Initial testing instructions                                  |
-

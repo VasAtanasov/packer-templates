@@ -1,6 +1,6 @@
 ---
 title: AGENTS (Scripts Guidance)
-version: 1.7.0
+version: 1.8.0
 status: Active
 scope: packer_templates/scripts
 ---
@@ -15,7 +15,7 @@ precedence over the root `AGENTS.md` for script-related changes.
 
 - Keep provisioning scripts deterministic, idempotent, and fast.
 - Centralize common behavior via modular libraries (`_common/lib-core.sh` + OS library).
-- Support both x86_64 and aarch64 builds without duplication.
+- Support x86_64 builds.
 
 ## Baseline Requirements
 
@@ -75,7 +75,7 @@ precedence over the root `AGENTS.md` for script-related changes.
 
 ## Architecture Awareness
 
-- Keep logic architecture-neutral by default; branch only when required.
+- Keep logic architecture-neutral by default.
 - Detect architecture using `dpkg --print-architecture` or `${PACKER_ARCH}` if provided.
 - For VirtualBox specifics, leave chipset/storage configuration to Packer variables/templates.
 
@@ -403,6 +403,7 @@ The scripts directory follows a four-tier organization for scalability.
 
 | Version | Date       | Changes                                                                                                                                     |
 |---------|------------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| 1.8.0   | 2025-11-20 | Changed: Removed ARM support from script guidance.                                                                                          |
 | 1.7.0   | 2025-11-14 | Changed: Variants use OS-specific subdirectories; providers/virtualbox prepared for multi‑OS (common + per‑OS wrappers); added dynamic selection examples. |
 | 1.6.0   | 2025-11-14 | Changed: Switch to modular libraries (`lib-core.sh` + OS-specific); updated sourcing pattern and environment vars (LIB_CORE_SH, LIB_OS_SH). |
 | 1.5.1   | 2025-11-13 | Changed: Replaced references to lib::apt_update_once with lib::ensure_apt_updated.                                                          |

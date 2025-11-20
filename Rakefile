@@ -290,14 +290,6 @@ task :debian_12 do
   Rake::Task[:build].invoke
 end
 
-desc 'Build Debian 12 aarch64 base box'
-task :debian_12_arm do
-  ENV['TEMPLATE'] = 'debian/12-aarch64.pkrvars.hcl'
-  ENV['PROVIDER'] = 'virtualbox'
-  ENV['TARGET_OS'] = 'debian'
-  Rake::Task[:build].invoke
-end
-
 desc 'Build Debian 12 x86_64 Kubernetes node box'
 task :debian_12_k8s do
   ENV['TEMPLATE'] = 'debian/12-x86_64.pkrvars.hcl'
@@ -333,15 +325,6 @@ task :debian_12_k8s_ovf do
   Rake::Task[:build].invoke
 end
 
-desc 'Build Debian 12 aarch64 Kubernetes node box'
-task :debian_12_arm_k8s do
-  ENV['TEMPLATE'] = 'debian/12-aarch64.pkrvars.hcl'
-  ENV['VARIANT'] = 'k8s-node'
-  ENV['PROVIDER'] = 'virtualbox'
-  ENV['TARGET_OS'] = 'debian'
-  Rake::Task[:build].invoke
-end
-
 desc 'Build Debian 12 x86_64 Docker host box'
 task :debian_12_docker do
   ENV['TEMPLATE'] = 'debian/12-x86_64.pkrvars.hcl'
@@ -351,12 +334,29 @@ task :debian_12_docker do
   Rake::Task[:build].invoke
 end
 
-desc 'Build Debian 12 aarch64 Docker host box'
-task :debian_12_arm_docker do
-  ENV['TEMPLATE'] = 'debian/12-aarch64.pkrvars.hcl'
-  ENV['VARIANT'] = 'docker-host'
+desc 'Build Debian 12 x86_64 base box from existing OVF'
+task :debian_12_ovf do
+  var_file = File.join(PKRVARS_DIR, 'debian/12-x86_64.pkrvars.hcl')
+  unless File.exist?(var_file)
+    puts "#{RED}Var file not found: #{var_file}#{RESET}"
+    exit 1
+  end
+
+  os_version_line = File.readlines(var_file).find { |l| l =~ /^\s*os_version\s*=\s*"/ }
+  os_version = os_version_line && os_version_line[/^\s*os_version\s*=\s*"(.*?)"/, 1]
+  os_version ||= '12'
+
+  ovf_dir = "ovf/packer-debian-#{os_version}-x86_64-virtualbox"
+  ovf_path = "#{ovf_dir}/debian-#{os_version}-x86_64.ovf"
+
+  ENV['TEMPLATE'] = 'debian/12-x86_64.pkrvars.hcl'
+  ENV['VARIANT'] = 'base' # Explicitly set variant to 'base'
+  ENV['PRIMARY_SOURCE'] = 'virtualbox-ovf'
   ENV['PROVIDER'] = 'virtualbox'
   ENV['TARGET_OS'] = 'debian'
+  ENV['OVF_SOURCE_PATH'] = ovf_path
+  ENV['OVF_CHECKSUM'] = 'none'
+
   Rake::Task[:build].invoke
 end
 
@@ -368,85 +368,10 @@ task :debian_13 do
   Rake::Task[:build].invoke
 end
 
-desc 'Build Debian 13 aarch64 base box'
-task :debian_13_arm do
-  ENV['TEMPLATE'] = 'debian/13-aarch64.pkrvars.hcl'
-  ENV['PROVIDER'] = 'virtualbox'
-  ENV['TARGET_OS'] = 'debian'
-  Rake::Task[:build].invoke
-end
-
-##@ Quick Builds (AlmaLinux)
-
 desc 'Build AlmaLinux 8 x86_64 base box'
-task :almalinux_8 do
-  ENV['TEMPLATE'] = 'almalinux/8-x86_64.pkrvars.hcl'
-  ENV['PROVIDER'] = 'virtualbox'
-  ENV['TARGET_OS'] = 'almalinux'
-  Rake::Task[:build].invoke
-end
-
-desc 'Build AlmaLinux 8 aarch64 base box'
-task :almalinux_8_arm do
-  ENV['TEMPLATE'] = 'almalinux/8-aarch64.pkrvars.hcl'
-  ENV['PROVIDER'] = 'virtualbox'
-  ENV['TARGET_OS'] = 'almalinux'
-  Rake::Task[:build].invoke
-end
-
 desc 'Build AlmaLinux 9 x86_64 base box'
 task :almalinux_9 do
   ENV['TEMPLATE'] = 'almalinux/9-x86_64.pkrvars.hcl'
-  ENV['PROVIDER'] = 'virtualbox'
-  ENV['TARGET_OS'] = 'almalinux'
-  Rake::Task[:build].invoke
-end
-
-desc 'Build AlmaLinux 9 aarch64 base box'
-task :almalinux_9_arm do
-  ENV['TEMPLATE'] = 'almalinux/9-aarch64.pkrvars.hcl'
-  ENV['PROVIDER'] = 'virtualbox'
-  ENV['TARGET_OS'] = 'almalinux'
-  Rake::Task[:build].invoke
-end
-
-desc 'Build AlmaLinux 9 x86_64 Kubernetes node box from existing OVF'
-task :almalinux_9_k8s_ovf do
-  var_file = File.join(PKRVARS_DIR, 'almalinux/9-x86_64.pkrvars.hcl')
-  unless File.exist?(var_file)
-    puts "#{RED}Var file not found: #{var_file}#{RESET}"
-    exit 1
-  end
-
-  os_version_line = File.readlines(var_file).find { |l| l =~ /^\s*os_version\s*=\s*"/ }
-  os_version = os_version_line && os_version_line[/^\s*os_version\s*=\s*"(.*?)"/, 1]
-  os_version ||= '9'
-
-  ovf_dir = "ovf/packer-almalinux-#{os_version}-x86_64-virtualbox"
-  ovf_path = "#{ovf_dir}/almalinux-#{os_version}-x86_64.ovf"
-
-  ENV['TEMPLATE'] = 'almalinux/9-x86_64.pkrvars.hcl'
-  ENV['VARIANT'] = 'k8s-node'
-  ENV['PRIMARY_SOURCE'] = 'virtualbox-ovf'
-  ENV['PROVIDER'] = 'virtualbox'
-  ENV['TARGET_OS'] = 'almalinux'
-  ENV['OVF_SOURCE_PATH'] = ovf_path
-  ENV['OVF_CHECKSUM'] = 'none'
-
-  Rake::Task[:build].invoke
-end
-
-desc 'Build AlmaLinux 10 x86_64 base box'
-task :almalinux_10 do
-  ENV['TEMPLATE'] = 'almalinux/10-x86_64.pkrvars.hcl'
-  ENV['PROVIDER'] = 'virtualbox'
-  ENV['TARGET_OS'] = 'almalinux'
-  Rake::Task[:build].invoke
-end
-
-desc 'Build AlmaLinux 10 aarch64 base box'
-task :almalinux_10_arm do
-  ENV['TEMPLATE'] = 'almalinux/10-aarch64.pkrvars.hcl'
   ENV['PROVIDER'] = 'virtualbox'
   ENV['TARGET_OS'] = 'almalinux'
   Rake::Task[:build].invoke

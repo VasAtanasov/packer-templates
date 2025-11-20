@@ -9,6 +9,7 @@ and this project adheres to Semantic Versioning where practical.
 
 ### Added
 
+- Rake and Make tasks for building from OVF (`debian-12-ovf`, `almalinux-9-ovf`, `debian-12-k8s-ovf`, `almalinux-9-k8s-ovf`).
 - Root `AGENTS.md` refined: scope/precedence, minimum versions, HCL conventions, reproducibility, DoD, fast dev loop,
   security, and cross‑refs.
 - `packer_templates/scripts/AGENTS.md` with script rules (strict mode, idempotent, root required) and skeleton (no local
@@ -28,7 +29,7 @@ and this project adheres to Semantic Versioning where practical.
   `pkr-plugins.pkr.hcl`, and Kickstart files under `http/rhel/` (`ks.cfg`, `8ks.cfg`).
 - RHEL-family base scripts: `packer_templates/scripts/rhel/systemd.sh`, `sudoers.sh`, `networking.sh` used in AlmaLinux
   builds (Phase 2c).
-- Quick build targets for AlmaLinux 8/9/10 (x86_64 + aarch64) added to Makefile and Rakefile.
+- Quick build targets for AlmaLinux 9 (x86_64) added to Makefile and Rakefile.
 - Custom scripts scoping: variant/provider directories with precedence; provider-aware discovery across all enabled
   providers.
 - Script staging: normalize CRLF to LF for all staged shell scripts.
@@ -41,6 +42,7 @@ and this project adheres to Semantic Versioning where practical.
 
 ### Changed
 
+- Updated `AGENTS.md` to reflect removal of ARM and unsupported AlmaLinux versions.
 - Refactored monolithic `_common/lib.sh` into modular libraries: `_common/lib-core.sh` (OS-agnostic),
   `_common/lib-debian.sh` (Debian/Ubuntu APT), `_common/lib-rhel.sh` (AlmaLinux/Rocky DNF). All scripts now source
   `LIB_CORE_SH` + `LIB_OS_SH`.
@@ -84,10 +86,6 @@ and this project adheres to Semantic Versioning where practical.
 
 ### Removed
 
+- ARM support (`aarch64`) from build scripts and documentation.
+- AlmaLinux 8 and 10 support from build scripts and documentation.
 - Deleted `doc/CONTRIBUTING_BASH.md` in favor of consolidated guidance in `packer_templates/scripts/AGENTS.md`.
-
-### Fixed
-
-- AlmaLinux 9: Kickstart fetch failures fixed by correcting `boot_command` to use `/rhel/ks.cfg` and adding
-  early-network kernel args (`ip=dhcp rd.neednet=1`).
-- AlmaLinux 9 aarch64: Corrected `inst.repo` architecture from `x86_64` to `aarch64`.

@@ -1,5 +1,5 @@
 title: docker-host Variant Support Matrix
-version: 0.1.0
+version: 0.2.0
 status: Active
 scope: OS support and script layout for docker-host variant
 
@@ -20,7 +20,7 @@ RHEL family scripts will be added under `variants/docker-host/rhel/` in a future
 
 ## Supported OS Families
 
-- Debian family: Debian 12, Debian 13 (x86_64, aarch64)
+- Debian family: Debian 12, Debian 13 (x86_64)
 - Ubuntu family: Planned
 - RHEL family (RHEL/AlmaLinux/Rocky): Planned
 
@@ -42,5 +42,5 @@ Packer selects OS-specific scripts at build time using a computed `os_family` de
 
 | Version | Date       | Changes                                      |
 |---------|------------|----------------------------------------------|
+| 0.2.0   | 2025-11-20 | Removed aarch64 from supported OS families.  |
 | 0.1.0   | 2025-11-14 | Initial support matrix and layout structure. |
-

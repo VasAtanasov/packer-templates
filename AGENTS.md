@@ -1,6 +1,6 @@
 ---
 title: AGENTS (Root Guidance)
-version: 3.2.1
+version: 3.3.0
 status: Active
 scope: repo-wide
 ---
@@ -21,7 +21,7 @@ applies repository‑wide unless overridden by a more deeply nested `AGENTS.md`.
 ## Minimum Tool Versions
 
 - Packer: >= 1.7.0 (enforced via `packer_templates/plugins.pkr.hcl`).
-- VirtualBox: >= 7.1.6 (for reliable aarch64 support).
+- VirtualBox: >= 7.1.6.
 - `make check-env` or `rake check_env` should be used before builds and fails early if requirements are unmet.
 
 ## Project Overview
@@ -40,16 +40,20 @@ host‑agnostic; no WSL2‑specific accommodations are required.
 # Base boxes (minimal)
 make debian-12          # Build Debian 12 x86_64 base box (recommended)
 make debian-13          # Build Debian 13 x86_64 base box
-make debian-12-arm      # Build Debian 12 aarch64 base box
-make debian-13-arm      # Build Debian 13 aarch64 base box
+make almalinux-9        # Build AlmaLinux 9 x86_64 base box
 
 # Kubernetes node variant
 make debian-12-k8s      # Build Debian 12 x86_64 Kubernetes node
-make debian-12-arm-k8s  # Build Debian 12 aarch64 Kubernetes node
+make almalinux-9-k8s    # Build AlmaLinux 9 x86_64 Kubernetes node
 
 # Docker host variant
-make debian-12-docker       # Build Debian 12 x86_64 Docker host
-make debian-12-arm-docker   # Build Debian 12 aarch64 Docker host
+make debian-12-docker   # Build Debian 12 x86_64 Docker host
+
+# OVF-based builds (for faster variant provisioning)
+make debian-12-ovf      # Build Debian 12 x86_64 base box from OVF
+make debian-12-k8s-ovf  # Build Debian 12 x86_64 k8s node from OVF
+make almalinux-9-ovf    # Build AlmaLinux 9 x86_64 base box from OVF
+make almalinux-9-k8s-ovf# Build AlmaLinux 9 x86_64 k8s node from OVF
 ```
 
 ### Core Commands
@@ -136,9 +140,9 @@ packer_templates/
 os_pkrvars/
   debian/                   # Debian variable files
     12-x86_64.pkrvars.hcl   # Debian 12 x86_64 (base + all variants via -var flags)
-    12-aarch64.pkrvars.hcl  # Debian 12 aarch64 (base + all variants via -var flags)
     13-x86_64.pkrvars.hcl   # Debian 13 x86_64 (base + all variants via -var flags)
-    13-aarch64.pkrvars.hcl  # Debian 13 aarch64 (base + all variants via -var flags)
+  almalinux/
+    9-x86_64.pkrvars.hcl    # AlmaLinux 9 x86_64 (base + all variants via -var flags)
 
 builds/
   iso/                      # Downloaded ISOs (cached by URL hash)
@@ -185,7 +189,6 @@ HCL style conventions:
 **Architecture-specific defaults:**
 
 - x86_64: ich9 chipset, SATA storage
-- aarch64: armv8virtual chipset, virtio storage, EFI firmware, USB peripherals
 
 ### Variant Script Selection (Dynamic)
 
@@ -370,9 +373,7 @@ Remove the gitignore entry to commit custom scripts to version control if desire
 1. Create `packer_templates/http/ubuntu/` with Ubuntu autoinstall files
 2. Create `os_pkrvars/ubuntu/` directory with `.pkrvars.hcl` files:
     - `22.04-x86_64.pkrvars.hcl`
-    - `22.04-aarch64.pkrvars.hcl`
     - `24.04-x86_64.pkrvars.hcl`
-    - `24.04-aarch64.pkrvars.hcl`
 3. Update `locals.pkr.hcl` to include "ubuntu" in `os_family` detection if needed
 4. Create `packer_templates/scripts/ubuntu/` if distro-specific scripts needed
 5. Create `packer_templates/scripts/providers/virtualbox/ubuntu/` for Ubuntu-specific Guest Additions handling
@@ -417,7 +418,6 @@ Remove the gitignore entry to commit custom scripts to version control if desire
      @$(MAKE) build TEMPLATE=debian/12-x86_64.pkrvars.hcl VARIANT=new-variant
    ```
 6. Test variant: `make build TEMPLATE=debian/12-x86_64.pkrvars.hcl VARIANT=new-variant`
-7. Test on both x86_64 and aarch64 where applicable
 
 **Important**: Variants clean themselves before base cleanup runs. Variant cleanup scripts should:
 - Remove build dependencies specific to the variant
@@ -431,7 +431,6 @@ Remove the gitignore entry to commit custom scripts to version control if desire
 - Use logging functions: `lib::log`, `lib::error`, etc.
 - Make scripts idempotent (safe to re-run)
 - Use helper functions: `lib::ensure_package`, `lib::ensure_service`, etc.
-- Test on both x86_64 and aarch64 when possible
 - For variant scripts, see `packer_templates/scripts/AGENTS.md` for detailed guidelines
 
 ## Host Environment
@@ -499,7 +498,7 @@ make validate PROVIDER=vmware TARGET_OS=ubuntu  # Future: validate VMware Ubuntu
 ## Definition of Done (DoD)
 
 - New template `.pkrvars.hcl` validates (`make validate-one`).
-- Full build succeeds on both arches (where applicable).
+- Full build succeeds.
 - Box name matches:
     - Base: `<os_name>-<os_version>-<os_arch>.virtualbox.box`
     - Variant: `<os_name>-<os_version>-<os_arch>-<variant>.virtualbox.box`
@@ -607,7 +606,8 @@ make validate PROVIDER=vmware TARGET_OS=ubuntu  # Future: validate VMware Ubuntu
 ## Doc Changelog
 
 | Version | Date       | Changes                                                                                                                                                                                                 |
-|---------|------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| --------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 3.3.0     | 2025-11-20     | Changed: Removed ARM support and unsupported AlmaLinux versions (8, 10) from build commands, directory structures, and documentation. Added OVF build commands.                                          |
 | 3.2.1   | 2025-11-17 | Adjusted: Provider gating relies on PACKER_BUILDER_TYPE for multi-source builds; clarified custom scripts scoping across providers.                                           |
 | 3.2.0   | 2025-11-17 | Added: Custom scripts scoping (variant/provider precedence), strict file gating (??-*.sh), CRLF→LF normalization during staging; updated docs accordingly.                      |
 | 3.1.0   | 2025-11-17 | Added: Semantic naming clarification, per-provider provisioners documentation, custom scripts extensibility section, split cleanup strategy documentation, variant cleanup requirements.               |

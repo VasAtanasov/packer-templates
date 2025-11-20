@@ -1,7 +1,7 @@
 ---
 title: Packer Vagrant Box Builder (Multi-Provider)
 status: Active
-version: 3.0.1
+version: 3.1.0
 scope: Consolidated template structure for building Vagrant boxes
 ---
 
@@ -39,7 +39,7 @@ make debian-12-docker   # Docker host variant
 ## Requirements
 
 - Packer >= 1.7.0
-- VirtualBox >= 7.1.6 (arm64 support)
+- VirtualBox >= 7.1.6
 - Vagrant >= 2.4.0 (for testing)
 - Make (Linux/macOS) or Rake (Windows) for convenience commands
 
@@ -51,6 +51,9 @@ make debian-12-docker   # Docker host variant
 | `make debian-12-k8s`                                                | Build Debian 12 x86_64 Kubernetes node         |
 | `make debian-12-docker`                                             | Build Debian 12 x86_64 Docker host             |
 | `make debian-13`                                                    | Build Debian 13 x86_64 base box                |
+| `make almalinux-9`                                                  | Build AlmaLinux 9 x86_64 base box              |
+| `make debian-12-ovf`                                                | Build Debian 12 x86_64 base box from OVF       |
+| `make almalinux-9-ovf`                                              | Build AlmaLinux 9 x86_64 base box from OVF     |
 | `make build TEMPLATE=debian/12-x86_64.pkrvars.hcl`                  | Build specific template (base variant)         |
 | `make build TEMPLATE=debian/12-x86_64.pkrvars.hcl VARIANT=k8s-node` | Build with variant                             |
 | `make validate`                                                     | Validate all templates                         |
@@ -144,7 +147,7 @@ Edit or create a `.pkrvars.hcl` in `os_pkrvars/<os_name>/`:
 // os_pkrvars/debian/12-x86_64.pkrvars.hcl
 os_name    = "debian"
 os_version = "12.12"
-os_arch = "x86_64"  # or aarch64
+os_arch = "x86_64"
 
 iso_url      = "https://cdimage.debian.org/..."
 iso_checksum = "file:https://cdimage.debian.org/.../SHA256SUMS"
@@ -233,9 +236,7 @@ packer_templates/
 os_pkrvars/
   debian/                   # Debian variable files
     12-x86_64.pkrvars.hcl   # Debian 12 x86_64 (base + all variants)
-    12-aarch64.pkrvars.hcl  # Debian 12 aarch64
     13-x86_64.pkrvars.hcl   # Debian 13 x86_64
-    13-aarch64.pkrvars.hcl  # Debian 13 aarch64
 ```
 
 **Why this structure:**
@@ -327,8 +328,7 @@ When making changes:
 1. Keep scripts simple and focused
 2. Use library helpers consistently (`lib-core.sh` + OS library)
 3. Make scripts idempotent (safe to re-run)
-4. Test on both x86_64 and aarch64 when possible
-5. Update this README and CHANGELOG; add Doc Changelog entry to modified docs
+4. Update this README and CHANGELOG; add Doc Changelog entry to modified docs
 
 ## Related projects
 
@@ -348,6 +348,7 @@ in complex world of base box building.
 
 | Version | Date       | Changes                                                                                                                                                                                                                                   |
 |---------|------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 3.1.0   | 2025-11-20 | Changed: Removed ARM support and unsupported AlmaLinux versions from documentation. Added OVF build commands.                                                                                                                             |
 | 3.0.1   | 2025-11-18 | Related projects section added; minor formatting fixes.                                                                                                                                                                                   |
 | 3.0.0   | 2025-11-17 | Consolidated template structure; all `.pkr.hcl` files now in `packer_templates/` root; updated all paths, build commands, and architecture sections; simplified provider/OS workflow.                                                     |
 | 2.2.0   | 2025-11-14 | Changed: Variants now use per-OS subdirectories; providers/virtualbox prepared for multi‑OS (common + per‑OS wrappers); updated directory structure and dynamic examples.                                                                 |

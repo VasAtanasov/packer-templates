@@ -1,6 +1,6 @@
 ---
 title: AGENTS (os_pkrvars Guidance)
-version: 1.1.0
+version: 1.2.0
 status: Active
 scope: os_pkrvars
 ---
@@ -16,11 +16,11 @@ This file applies to `os_pkrvars/` and all subdirectories.
 - Keep files minimal and focused on inputs; avoid embedding logic.
 
 ## Required Fields
-- `os_name`, `os_version`, `os_arch` (must be `x86_64` or `aarch64`).
+- `os_name`, `os_version`, `os_arch` (must be `x86_64`).
 - `iso_url` (official Debian mirror URL).
 - `iso_checksum` (use Debian’s published SHA256 lists via `file:` URLs).
-- `vbox_guest_os_type` (e.g., `Debian12_64`, `Debian12_arm64`).
-- `boot_command` appropriate for the architecture.
+- `vbox_guest_os_type` (e.g., `Debian12_64`).
+- `boot_command` appropriate for the x86_64 architecture.
 
 ## Optional and Common Overrides
 - `headless` (default true; set to false to debug): `headless = false`.
@@ -54,5 +54,6 @@ This file applies to `os_pkrvars/` and all subdirectories.
 
 | Version | Date       | Changes                                                    |
 |---------|------------|------------------------------------------------------------|
+| 1.2.0   | 2025-11-20 | Changed: Removed ARM support from guidance.                |
 | 1.1.0   | 2025-11-13 | Added frontmatter; clarified required fields and examples. |
 | 1.0.0   | 2025-11-13 | Initial guidance for variable files.                       |

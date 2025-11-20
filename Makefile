@@ -205,10 +205,6 @@ endif
 debian-12: ## Build Debian 12 x86_64 base box
 	@$(MAKE) build TEMPLATE=debian/12-x86_64.pkrvars.hcl
 
-.PHONY: debian-12-arm
-debian-12-arm: ## Build Debian 12 aarch64 base box
-	@$(MAKE) build TEMPLATE=debian/12-aarch64.pkrvars.hcl
-
 .PHONY: debian-12-k8s
 debian-12-k8s: ## Build Debian 12 x86_64 Kubernetes node box
 	@$(MAKE) build TEMPLATE=debian/12-x86_64.pkrvars.hcl VARIANT=k8s-node
@@ -221,59 +217,27 @@ debian-12-k8s-ovf: ## Build Debian 12 x86_64 Kubernetes node box from existing O
 	ovf_path="$$ovf_dir/debian-$${os_version}-x86_64.ovf"; \
 	$(MAKE) build TEMPLATE=debian/12-x86_64.pkrvars.hcl VARIANT=k8s-node PRIMARY_SOURCE=virtualbox-ovf OVF_SOURCE_PATH="$$ovf_path" OVF_CHECKSUM=none
 
-.PHONY: debian-12-arm-k8s
-debian-12-arm-k8s: ## Build Debian 12 aarch64 Kubernetes node box
-	@$(MAKE) build TEMPLATE=debian/12-aarch64.pkrvars.hcl VARIANT=k8s-node
+.PHONY: debian-12-ovf
+debian-12-ovf: ## Build Debian 12 x86_64 base box from existing OVF
+	@var_file=$(PKRVARS_DIR)/debian/12-x86_64.pkrvars.hcl; \
+	os_version=$$(sed -n 's/^\s*os_version\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+	ovf_dir="ovf/packer-debian-$${os_version}-x86_64-virtualbox"; \
+	ovf_path="$$ovf_dir/debian-$${os_version}-x86_64.ovf"; \
+	$(MAKE) build TEMPLATE=debian/12-x86_64.pkrvars.hcl VARIANT=base PRIMARY_SOURCE=virtualbox-ovf OVF_SOURCE_PATH="$$ovf_path" OVF_CHECKSUM=none
 
 .PHONY: debian-12-docker
 debian-12-docker: ## Build Debian 12 x86_64 Docker host box
 	@$(MAKE) build TEMPLATE=debian/12-x86_64.pkrvars.hcl VARIANT=docker-host
 
-.PHONY: debian-12-arm-docker
-debian-12-arm-docker: ## Build Debian 12 aarch64 Docker host box
-	@$(MAKE) build TEMPLATE=debian/12-aarch64.pkrvars.hcl VARIANT=docker-host
-
 .PHONY: debian-13
 debian-13: ## Build Debian 13 x86_64 base box
 	@$(MAKE) build TEMPLATE=debian/13-x86_64.pkrvars.hcl
 
-.PHONY: debian-13-arm
-debian-13-arm: ## Build Debian 13 aarch64 base box
-	@$(MAKE) build TEMPLATE=debian/13-aarch64.pkrvars.hcl
-
 ##@ Quick Builds (VirtualBox + AlmaLinux)
-
-.PHONY: almalinux-8
-almalinux-8: ## Build AlmaLinux 8 x86_64 base box
-	@$(MAKE) build TEMPLATE=almalinux/8-x86_64.pkrvars.hcl PROVIDER=virtualbox TARGET_OS=almalinux
-
-.PHONY: almalinux-8-arm
-almalinux-8-arm: ## Build AlmaLinux 8 aarch64 base box
-	@$(MAKE) build TEMPLATE=almalinux/8-aarch64.pkrvars.hcl PROVIDER=virtualbox TARGET_OS=almalinux
 
 .PHONY: almalinux-9
 almalinux-9: ## Build AlmaLinux 9 x86_64 base box
 	@$(MAKE) build TEMPLATE=almalinux/9-x86_64.pkrvars.hcl PROVIDER=virtualbox TARGET_OS=almalinux
-
-.PHONY: almalinux-9-arm
-almalinux-9-arm: ## Build AlmaLinux 9 aarch64 base box
-	@$(MAKE) build TEMPLATE=almalinux/9-aarch64.pkrvars.hcl PROVIDER=virtualbox TARGET_OS=almalinux
-
-.PHONY: almalinux-9-k8s-ovf
-almalinux-9-k8s-ovf: ## Build AlmaLinux 9 x86_64 Kubernetes node box from existing OVF
-	@var_file=$(PKRVARS_DIR)/almalinux/9-x86_64.pkrvars.hcl; \
-	os_version=$$(sed -n 's/^\s*os_version\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
-	ovf_dir="ovf/packer-almalinux-$${os_version}-x86_64-virtualbox"; \
-	ovf_path="$$ovf_dir/almalinux-$${os_version}-x86_64.ovf"; \
-	$(MAKE) build TEMPLATE=almalinux/9-x86_64.pkrvars.hcl VARIANT=k8s-node PRIMARY_SOURCE=virtualbox-ovf OVF_SOURCE_PATH="$$ovf_path" OVF_CHECKSUM=none PROVIDER=virtualbox TARGET_OS=almalinux
-
-.PHONY: almalinux-10
-almalinux-10: ## Build AlmaLinux 10 x86_64 base box
-	@$(MAKE) build TEMPLATE=almalinux/10-x86_64.pkrvars.hcl PROVIDER=virtualbox TARGET_OS=almalinux
-
-.PHONY: almalinux-10-arm
-almalinux-10-arm: ## Build AlmaLinux 10 aarch64 base box
-	@$(MAKE) build TEMPLATE=almalinux/10-aarch64.pkrvars.hcl PROVIDER=virtualbox TARGET_OS=almalinux
 
 ##@ Development
 

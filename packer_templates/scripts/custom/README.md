@@ -1,6 +1,6 @@
 ---
 title: Custom Scripts (Extensibility)
-version: 1.2.0
+version: 1.3.0
 status: Active
 scope: Custom script extension point for provisioning
 ---
@@ -147,8 +147,9 @@ lib::success "Custom provisioning complete"
 
 ## Doc Changelog
 
-| Version | Date       | Changes                                                     |
-|---------|------------|-------------------------------------------------------------|
+| Version | Date       | Changes                                                                                                |
+|---------|------------|--------------------------------------------------------------------------------------------------------|
+| 1.3.0   | 2025-11-20 | Reviewed and confirmed guidance after recent build script changes.                                     |
 | 1.2.0   | 2025-11-17 | Add variant/provider scoping, strict file pattern (??-*.sh), provider gating guidance, CRLF normalization note. |
-| 1.1.0   | 2025-11-17 | Added Best Practices, header metadata, and changelog block. |
-| 1.0.0   | 2025-11-13 | Initial README for custom scripts extension.               |
+| 1.1.0   | 2025-11-17 | Added Best Practices, header metadata, and changelog block.                                            |
+| 1.0.0   | 2025-11-13 | Initial README for custom scripts extension.                                                           |

@@ -1,8 +1,7 @@
 title: Packer/Vagrant Helper Commands
-version: 1.0.0
+version: 1.1.0
 status: Active
 scope: Common Packer/Make/Rake/Vagrant commands for local box builds
-
 ---
 
 This document collects frequently used commands for building Packer boxes and adding them to the local Vagrant box repository. Commands are grouped for Windows/PowerShell (Rake) and Linux/WSL (Make).
@@ -145,4 +144,5 @@ vagrant box add .\almalinux-9.6-x86_64-k8s-node-1.33.3.json
 
 | Version | Date       | Changes                                                               |
 |---------|------------|-----------------------------------------------------------------------|
-| 1.0.0   | 2025-11-19 | Added initial helper commands for Packer/Make/Rake/Vagrant workflows. |
+| 1.1.0   | 2025-11-20 | Reviewed and confirmed commands after recent build script changes.    |
+| 1.0.0   | 2025-11-19 | Initial helper commands for Packer/Make/Rake/Vagrant workflows.       |
