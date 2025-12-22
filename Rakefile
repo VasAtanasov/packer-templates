@@ -334,6 +334,32 @@ task :debian_12_docker do
   Rake::Task[:build].invoke
 end
 
+desc 'Build Debian 12 x86_64 Docker host box from existing OVF'
+task :debian_12_docker_ovf do
+  var_file = File.join(PKRVARS_DIR, 'debian/12-x86_64.pkrvars.hcl')
+  unless File.exist?(var_file)
+    puts "#{RED}Var file not found: #{var_file}#{RESET}"
+    exit 1
+  end
+
+  os_version_line = File.readlines(var_file).find { |l| l =~ /^\s*os_version\s*=\s*"/ }
+  os_version = os_version_line && os_version_line[/^\s*os_version\s*=\s*"(.*?)"/, 1]
+  os_version ||= '12'
+
+  ovf_dir = "ovf/packer-debian-#{os_version}-x86_64-virtualbox"
+  ovf_path = "#{ovf_dir}/debian-#{os_version}-x86_64.ovf"
+
+  ENV['TEMPLATE'] = 'debian/12-x86_64.pkrvars.hcl'
+  ENV['VARIANT'] = 'docker-host'
+  ENV['PRIMARY_SOURCE'] = 'virtualbox-ovf'
+  ENV['PROVIDER'] = 'virtualbox'
+  ENV['TARGET_OS'] = 'debian'
+  ENV['OVF_SOURCE_PATH'] = ovf_path
+  ENV['OVF_CHECKSUM'] = 'none'
+
+  Rake::Task[:build].invoke
+end
+
 desc 'Build Debian 12 x86_64 base box from existing OVF'
 task :debian_12_ovf do
   var_file = File.join(PKRVARS_DIR, 'debian/12-x86_64.pkrvars.hcl')

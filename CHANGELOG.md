@@ -39,6 +39,7 @@ and this project adheres to Semantic Versioning where practical.
 - Make/Rake: `debian-12-k8s-ovf`/`debian_12_k8s_ovf` quick build targets to build Debian 12 k8s-node boxes from existing VirtualBox OVFs.
 - Make/Rake: `vagrant-add`/`vagrant_add` helpers to register built boxes into the local Vagrant box repository using computed names.
 - Make/Rake: `vagrant-metadata`/`vagrant_metadata` helpers to generate Vagrant box metadata JSON files so box versions can track Kubernetes versions.
+- Make/Rake: `debian-12-docker-ovf`/`debian_12_docker_ovf` quick build targets to build Debian 12 docker-host boxes from existing VirtualBox OVFs.
 
 ### Changed
 

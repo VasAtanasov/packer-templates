@@ -229,6 +229,14 @@ debian-12-ovf: ## Build Debian 12 x86_64 base box from existing OVF
 debian-12-docker: ## Build Debian 12 x86_64 Docker host box
 	@$(MAKE) build TEMPLATE=debian/12-x86_64.pkrvars.hcl VARIANT=docker-host
 
+.PHONY: debian-12-docker-ovf
+debian-12-docker-ovf: ## Build Debian 12 x86_64 Docker host box from existing OVF
+	@var_file=$(PKRVARS_DIR)/debian/12-x86_64.pkrvars.hcl; \
+	os_version=$$(sed -n 's/^\s*os_version\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+	ovf_dir="ovf/packer-debian-$${os_version}-x86_64-virtualbox"; \
+	ovf_path="$$ovf_dir/debian-$${os_version}-x86_64.ovf"; \
+	$(MAKE) build TEMPLATE=debian/12-x86_64.pkrvars.hcl VARIANT=docker-host PRIMARY_SOURCE=virtualbox-ovf OVF_SOURCE_PATH="$$ovf_path" OVF_CHECKSUM=none
+
 .PHONY: debian-13
 debian-13: ## Build Debian 13 x86_64 base box
 	@$(MAKE) build TEMPLATE=debian/13-x86_64.pkrvars.hcl
