@@ -367,6 +367,32 @@ task :debian_12_k8s_ovf do
   Rake::Task[:build].invoke
 end
 
+desc 'Build Debian 12 x86_64 base box from existing OVF'
+task :debian_12_ovf do
+  var_file = File.join(PKRVARS_DIR, 'debian/12-x86_64.pkrvars.hcl')
+  unless File.exist?(var_file)
+    puts "#{RED}Var file not found: #{var_file}#{RESET}"
+    exit 1
+  end
+
+  os_version_line = File.readlines(var_file).find { |l| l =~ /^\s*os_version\s*=\s*"/ }
+  os_version = os_version_line && os_version_line[/^\s*os_version\s*=\s*"(.*?)"/, 1]
+  os_version ||= '12'
+
+  ovf_dir = "ovf/packer-debian-#{os_version}-x86_64-virtualbox"
+  ovf_path = "#{ovf_dir}/debian-#{os_version}-x86_64.ovf"
+
+  ENV['TEMPLATE'] = 'debian/12-x86_64.pkrvars.hcl'
+  ENV['VARIANT'] = 'base' # Explicitly set variant to 'base'
+  ENV['PRIMARY_SOURCE'] = 'virtualbox-ovf'
+  ENV['PROVIDER'] = 'virtualbox'
+  ENV['TARGET_OS'] = 'debian'
+  ENV['OVF_SOURCE_PATH'] = ovf_path
+  ENV['OVF_CHECKSUM'] = 'none'
+
+  Rake::Task[:build].invoke
+end
+
 desc 'Build Debian 12 x86_64 Docker host box'
 task :debian_12_docker do
   ENV['TEMPLATE'] = 'debian/12-x86_64.pkrvars.hcl'
@@ -393,32 +419,6 @@ task :debian_12_docker_ovf do
 
   ENV['TEMPLATE'] = 'debian/12-x86_64.pkrvars.hcl'
   ENV['VARIANT'] = 'docker-host'
-  ENV['PRIMARY_SOURCE'] = 'virtualbox-ovf'
-  ENV['PROVIDER'] = 'virtualbox'
-  ENV['TARGET_OS'] = 'debian'
-  ENV['OVF_SOURCE_PATH'] = ovf_path
-  ENV['OVF_CHECKSUM'] = 'none'
-
-  Rake::Task[:build].invoke
-end
-
-desc 'Build Debian 12 x86_64 base box from existing OVF'
-task :debian_12_ovf do
-  var_file = File.join(PKRVARS_DIR, 'debian/12-x86_64.pkrvars.hcl')
-  unless File.exist?(var_file)
-    puts "#{RED}Var file not found: #{var_file}#{RESET}"
-    exit 1
-  end
-
-  os_version_line = File.readlines(var_file).find { |l| l =~ /^\s*os_version\s*=\s*"/ }
-  os_version = os_version_line && os_version_line[/^\s*os_version\s*=\s*"(.*?)"/, 1]
-  os_version ||= '12'
-
-  ovf_dir = "ovf/packer-debian-#{os_version}-x86_64-virtualbox"
-  ovf_path = "#{ovf_dir}/debian-#{os_version}-x86_64.ovf"
-
-  ENV['TEMPLATE'] = 'debian/12-x86_64.pkrvars.hcl'
-  ENV['VARIANT'] = 'base' # Explicitly set variant to 'base'
   ENV['PRIMARY_SOURCE'] = 'virtualbox-ovf'
   ENV['PROVIDER'] = 'virtualbox'
   ENV['TARGET_OS'] = 'debian'
@@ -505,7 +505,6 @@ task :debian_13_docker_ovf do
   Rake::Task[:build].invoke
 end
 
-desc 'Build AlmaLinux 8 x86_64 base box'
 desc 'Build AlmaLinux 9 x86_64 base box'
 task :almalinux_9 do
   ENV['TEMPLATE'] = 'almalinux/9-x86_64.pkrvars.hcl'
@@ -543,6 +542,70 @@ task :debug do
     puts stdout
   else
     puts "VBoxManage not found in PATH"
+  end
+end
+
+desc 'Check environment and dependencies'
+task :check_env do
+  puts "#{GREEN}Checking environment...#{RESET}"
+
+  errors = []
+  warnings = []
+
+  # Check for packer
+  unless system('which packer > /dev/null 2>&1')
+    errors << "packer not found"
+  end
+
+  # Check for VBoxManage
+  unless system('which VBoxManage > /dev/null 2>&1')
+    errors << "VBoxManage not found (required for VirtualBox builds)"
+  end
+
+  # Check for directories
+  unless Dir.exist?(TEMPLATE_DIR_BASE)
+    errors << "#{TEMPLATE_DIR_BASE} directory not found"
+  end
+
+  unless Dir.exist?(PKRVARS_DIR)
+    errors << "#{PKRVARS_DIR} directory not found"
+  end
+
+  # Version checks (only if binaries are present)
+  if errors.none? { |e| e.include?('packer not found') }
+    pv_out, = Open3.capture2('packer version')
+    pv = pv_out[/v?(\d+\.\d+\.\d+)/, 1]
+    if pv.nil?
+      errors << 'unable to parse Packer version'
+    elsif Gem::Version.new(pv) < Gem::Version.new(PACKER_MIN_VER)
+      errors << "Packer #{pv} < required #{PACKER_MIN_VER}"
+    end
+  end
+
+  if errors.none? { |e| e.include?('VBoxManage not found') }
+    vv_out, = Open3.capture2('VBoxManage --version')
+    vv = vv_out[/^(\d+\.\d+\.\d+)/, 1]
+    if vv.nil?
+      errors << 'unable to parse VirtualBox version'
+    elsif Gem::Version.new(vv) < Gem::Version.new(VBOX_MIN_VER)
+      errors << "VirtualBox #{vv} < required #{VBOX_MIN_VER}"
+    end
+  end
+
+  if errors.empty? && warnings.empty?
+    puts "#{GREEN}Environment check passed!#{RESET}"
+  else
+    unless errors.empty?
+      puts "#{RED}Errors:#{RESET}"
+      errors.each { |e| puts "  - #{e}" }
+    end
+
+    unless warnings.empty?
+      puts "#{YELLOW}Warnings:#{RESET}"
+      warnings.each { |w| puts "  - #{w}" }
+    end
+
+    exit 1 unless errors.empty?
   end
 end
 
@@ -756,66 +819,3 @@ task :vagrant_metadata do
   puts "#{GREEN}Wrote Vagrant metadata: #{metadata_path}#{RESET}"
 end
 
-desc 'Check environment and dependencies'
-task :check_env do
-  puts "#{GREEN}Checking environment...#{RESET}"
-
-  errors = []
-  warnings = []
-
-  # Check for packer
-  unless system('which packer > /dev/null 2>&1')
-    errors << "packer not found"
-  end
-
-  # Check for VBoxManage
-  unless system('which VBoxManage > /dev/null 2>&1')
-    errors << "VBoxManage not found (required for VirtualBox builds)"
-  end
-
-  # Check for directories
-  unless Dir.exist?(TEMPLATE_DIR_BASE)
-    errors << "#{TEMPLATE_DIR_BASE} directory not found"
-  end
-
-  unless Dir.exist?(PKRVARS_DIR)
-    errors << "#{PKRVARS_DIR} directory not found"
-  end
-
-  # Version checks (only if binaries are present)
-  if errors.none? { |e| e.include?('packer not found') }
-    pv_out, = Open3.capture2('packer version')
-    pv = pv_out[/v?(\d+\.\d+\.\d+)/, 1]
-    if pv.nil?
-      errors << 'unable to parse Packer version'
-    elsif Gem::Version.new(pv) < Gem::Version.new(PACKER_MIN_VER)
-      errors << "Packer #{pv} < required #{PACKER_MIN_VER}"
-    end
-  end
-
-  if errors.none? { |e| e.include?('VBoxManage not found') }
-    vv_out, = Open3.capture2('VBoxManage --version')
-    vv = vv_out[/^(\d+\.\d+\.\d+)/, 1]
-    if vv.nil?
-      errors << 'unable to parse VirtualBox version'
-    elsif Gem::Version.new(vv) < Gem::Version.new(VBOX_MIN_VER)
-      errors << "VirtualBox #{vv} < required #{VBOX_MIN_VER}"
-    end
-  end
-
-  if errors.empty? && warnings.empty?
-    puts "#{GREEN}Environment check passed!#{RESET}"
-  else
-    unless errors.empty?
-      puts "#{RED}Errors:#{RESET}"
-      errors.each { |e| puts "  - #{e}" }
-    end
-
-    unless warnings.empty?
-      puts "#{YELLOW}Warnings:#{RESET}"
-      warnings.each { |w| puts "  - #{w}" }
-    end
-
-    exit 1 unless errors.empty?
-  end
-end
