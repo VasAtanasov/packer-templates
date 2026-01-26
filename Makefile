@@ -81,10 +81,10 @@ init: ## Initialize Packer plugins
 	@cd $(TEMPLATE_DIR_BASE) && packer init .
 
 .PHONY: build
-build: init ## Build a specific box (usage: make build TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node])
+build: init ## Build a specific box (usage: make build TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node] [KEEP_INPUT_ARTIFACT=true])
 ifndef TEMPLATE
 	@echo -e "$(RED)Error: TEMPLATE variable not set$(RESET)"
-	@echo "Usage: make build TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node]"
+	@echo "Usage: make build TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node] [KEEP_INPUT_ARTIFACT=true]"
 	@exit 1
 endif
 	@template_dir=$(TEMPLATE_DIR_BASE); \
@@ -105,6 +105,9 @@ endif
 	if [ -n "$(OVF_CHECKSUM)" ]; then \
 		extra_vars="$$extra_vars -var=ovf_checksum=$(OVF_CHECKSUM)"; \
 	fi; \
+	if [ -n "$(KEEP_INPUT_ARTIFACT)" ]; then \
+		extra_vars="$$extra_vars -var=keep_input_artifact=$(KEEP_INPUT_ARTIFACT)"; \
+	fi; \
 	echo -e "$(GREEN)Building from $$var_file$(RESET)"; \
 	if [ -n "$(VARIANT)" ]; then echo -e "$(YELLOW)Variant: $(VARIANT)$(RESET)"; fi; \
 	packer build \
@@ -113,17 +116,21 @@ endif
 		$$template_dir
 
 .PHONY: ovf-clean
-ovf-clean: init ## Build a clean OVF (no provisioners) for quick testing (usage: make ovf-clean TEMPLATE=debian/12-x86_64.pkrvars.hcl)
+ovf-clean: init ## Build a clean OVF (no provisioners) for quick testing (usage: make ovf-clean TEMPLATE=debian/12-x86_64.pkrvars.hcl [KEEP_INPUT_ARTIFACT=true])
 ifndef TEMPLATE
 	@echo -e "$(RED)Error: TEMPLATE variable not set$(RESET)"
-	@echo "Usage: make ovf-clean TEMPLATE=debian/12-x86_64.pkrvars.hcl"
+	@echo "Usage: make ovf-clean TEMPLATE=debian/12-x86_64.pkrvars.hcl [KEEP_INPUT_ARTIFACT=true]"
 	@exit 1
 endif
 	@template_dir=$(TEMPLATE_DIR_BASE); \
 	var_file=$(PKRVARS_DIR)/$(TEMPLATE); \
+	extra_vars="-var=skip_provisioners=true"; \
+	if [ -n "$(KEEP_INPUT_ARTIFACT)" ]; then \
+		extra_vars="$$extra_vars -var=keep_input_artifact=$(KEEP_INPUT_ARTIFACT)"; \
+	fi; \
 	echo -e "$(GREEN)Building CLEAN OVF from $$var_file (no provisioners)$(RESET)"; \
 	packer build \
-		-var=skip_provisioners=true \
+		$$extra_vars \
 		-var-file=$$var_file \
 		$$template_dir
 
@@ -241,9 +248,25 @@ debian-12-docker-ovf: ## Build Debian 12 x86_64 Docker host box from existing OV
 debian-13: ## Build Debian 13 x86_64 base box
 	@$(MAKE) build TEMPLATE=debian/13-x86_64.pkrvars.hcl
 
+.PHONY: debian-13-ovf
+debian-13-ovf: ## Build Debian 13 x86_64 base box from existing OVF
+	@var_file=$(PKRVARS_DIR)/debian/13-x86_64.pkrvars.hcl; \
+	os_version=$$(sed -n 's/^\s*os_version\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+	ovf_dir="ovf/packer-debian-$${os_version}-x86_64-virtualbox"; \
+	ovf_path="$$ovf_dir/debian-$${os_version}-x86_64.ovf"; \
+	$(MAKE) build TEMPLATE=debian/13-x86_64.pkrvars.hcl VARIANT=base PRIMARY_SOURCE=virtualbox-ovf OVF_SOURCE_PATH="$$ovf_path" OVF_CHECKSUM=none
+
 .PHONY: debian-13-docker
 debian-13-docker: ## Build Debian 13 x86_64 Docker host box
 	@$(MAKE) build TEMPLATE=debian/13-x86_64.pkrvars.hcl VARIANT=docker-host
+
+.PHONY: debian-13-docker-ovf
+debian-13-docker-ovf: ## Build Debian 13 x86_64 Docker host box from existing OVF
+	@var_file=$(PKRVARS_DIR)/debian/13-x86_64.pkrvars.hcl; \
+	os_version=$$(sed -n 's/^\s*os_version\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+	ovf_dir="ovf/packer-debian-$${os_version}-x86_64-virtualbox"; \
+	ovf_path="$$ovf_dir/debian-$${os_version}-x86_64.ovf"; \
+	$(MAKE) build TEMPLATE=debian/13-x86_64.pkrvars.hcl VARIANT=docker-host PRIMARY_SOURCE=virtualbox-ovf OVF_SOURCE_PATH="$$ovf_path" OVF_CHECKSUM=none
 
 ##@ Quick Builds (VirtualBox + AlmaLinux)
 

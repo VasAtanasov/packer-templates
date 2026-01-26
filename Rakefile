@@ -144,17 +144,18 @@ task :init do
   end
 end
 
-desc 'Build a specific box (usage: rake build TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node])'
+desc 'Build a specific box (usage: rake build TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node] [KEEP_INPUT_ARTIFACT=true])'
 task build: :init do
   template = ENV['TEMPLATE']
   variant = ENV['VARIANT']
   primary_source = ENV['PRIMARY_SOURCE']
   ovf_source_path = ENV['OVF_SOURCE_PATH']
   ovf_checksum = ENV['OVF_CHECKSUM']
+  keep_input_artifact = ENV['KEEP_INPUT_ARTIFACT']
 
   unless template
     puts "#{RED}Error: TEMPLATE variable not set#{RESET}"
-    puts "Usage: rake build TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node]"
+    puts "Usage: rake build TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node] [KEEP_INPUT_ARTIFACT=true]"
     exit 1
   end
 
@@ -177,11 +178,40 @@ task build: :init do
   if ovf_checksum && !ovf_checksum.empty?
     extra_vars += " -var=ovf_checksum=#{ovf_checksum}"
   end
+  if keep_input_artifact && !keep_input_artifact.empty?
+    extra_vars += " -var=keep_input_artifact=#{keep_input_artifact}"
+  end
 
   puts "#{GREEN}Building from #{var_file}#{RESET}"
   puts "#{YELLOW}Variant: #{variant}#{RESET}" if variant && !variant.empty?
 
   success = system("packer build -var-file=#{var_file} #{extra_vars} #{template_dir}")
+
+  exit 1 unless success
+end
+
+desc 'Build a clean OVF (no provisioners) for quick testing (usage: rake ovf_clean TEMPLATE=debian/12-x86_64.pkrvars.hcl [KEEP_INPUT_ARTIFACT=true])'
+task ovf_clean: :init do
+  template = ENV['TEMPLATE']
+  keep_input_artifact = ENV['KEEP_INPUT_ARTIFACT']
+
+  unless template
+    puts "#{RED}Error: TEMPLATE variable not set#{RESET}"
+    puts "Usage: rake ovf_clean TEMPLATE=debian/12-x86_64.pkrvars.hcl [KEEP_INPUT_ARTIFACT=true]"
+    exit 1
+  end
+
+  template_dir = TEMPLATE_DIR_BASE
+  var_file = File.join(PKRVARS_DIR, template)
+
+  extra_vars = "-var=skip_provisioners=true"
+  if keep_input_artifact && !keep_input_artifact.empty?
+    extra_vars += " -var=keep_input_artifact=#{keep_input_artifact}"
+  end
+
+  puts "#{GREEN}Building CLEAN OVF from #{var_file} (no provisioners)#{RESET}"
+
+  success = system("packer build #{extra_vars} -var-file=#{var_file} #{template_dir}")
 
   exit 1 unless success
 end
@@ -394,12 +424,64 @@ task :debian_13 do
   Rake::Task[:build].invoke
 end
 
+desc 'Build Debian 13 x86_64 base box from existing OVF'
+task :debian_13_ovf do
+  var_file = File.join(PKRVARS_DIR, 'debian/13-x86_64.pkrvars.hcl')
+  unless File.exist?(var_file)
+    puts "#{RED}Var file not found: #{var_file}#{RESET}"
+    exit 1
+  end
+
+  os_version_line = File.readlines(var_file).find { |l| l =~ /^\s*os_version\s*=\s*"/ }
+  os_version = os_version_line && os_version_line[/^\s*os_version\s*=\s*"(.*?)"/, 1]
+  os_version ||= '13'
+
+  ovf_dir = "ovf/packer-debian-#{os_version}-x86_64-virtualbox"
+  ovf_path = "#{ovf_dir}/debian-#{os_version}-x86_64.ovf"
+
+  ENV['TEMPLATE'] = 'debian/13-x86_64.pkrvars.hcl'
+  ENV['VARIANT'] = 'base' # Explicitly set variant to 'base'
+  ENV['PRIMARY_SOURCE'] = 'virtualbox-ovf'
+  ENV['PROVIDER'] = 'virtualbox'
+  ENV['TARGET_OS'] = 'debian'
+  ENV['OVF_SOURCE_PATH'] = ovf_path
+  ENV['OVF_CHECKSUM'] = 'none'
+
+  Rake::Task[:build].invoke
+end
+
 desc 'Build Debian 13 x86_64 Docker host box'
 task :debian_13_docker do
   ENV['TEMPLATE'] = 'debian/13-x86_64.pkrvars.hcl'
   ENV['VARIANT'] = 'docker-host'
   ENV['PROVIDER'] = 'virtualbox'
   ENV['TARGET_OS'] = 'debian'
+  Rake::Task[:build].invoke
+end
+
+desc 'Build Debian 13 x86_64 Docker host box from existing OVF'
+task :debian_13_docker_ovf do
+  var_file = File.join(PKRVARS_DIR, 'debian/13-x86_64.pkrvars.hcl')
+  unless File.exist?(var_file)
+    puts "#{RED}Var file not found: #{var_file}#{RESET}"
+    exit 1
+  end
+
+  os_version_line = File.readlines(var_file).find { |l| l =~ /^\s*os_version\s*=\s*"/ }
+  os_version = os_version_line && os_version_line[/^\s*os_version\s*=\s*"(.*?)"/, 1]
+  os_version ||= '13'
+
+  ovf_dir = "ovf/packer-debian-#{os_version}-x86_64-virtualbox"
+  ovf_path = "#{ovf_dir}/debian-#{os_version}-x86_64.ovf"
+
+  ENV['TEMPLATE'] = 'debian/13-x86_64.pkrvars.hcl'
+  ENV['VARIANT'] = 'docker-host'
+  ENV['PRIMARY_SOURCE'] = 'virtualbox-ovf'
+  ENV['PROVIDER'] = 'virtualbox'
+  ENV['TARGET_OS'] = 'debian'
+  ENV['OVF_SOURCE_PATH'] = ovf_path
+  ENV['OVF_CHECKSUM'] = 'none'
+
   Rake::Task[:build].invoke
 end
 
