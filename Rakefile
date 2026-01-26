@@ -35,6 +35,47 @@ def pkrvars_files
   Dir.glob("#{PKRVARS_DIR}/#{target_os}/**/*.pkrvars.hcl").sort
 end
 
+# Export OVF artifacts if EXPORT_OVF=true
+def export_ovf_artifacts(var_file, provider = 'virtualbox')
+  return unless ENV['EXPORT_OVF'] =~ /^(true|1|yes)$/i
+
+  unless File.exist?(var_file)
+    puts "#{RED}Var file not found: #{var_file}#{RESET}"
+    return
+  end
+
+  # Parse pkrvars to extract variables
+  read_val = ->(key) do
+    line = File.readlines(var_file).find { |l| l =~ /^\s*#{key}\s*=\s*"/ }
+    line && line[/^\s*#{key}\s*=\s*"(.*?)"/, 1]
+  end
+
+  os_name = read_val.call('os_name') || 'unknown'
+  os_version = read_val.call('os_version') || 'unknown'
+  os_arch = read_val.call('os_arch') || 'unknown'
+
+  # Construct paths matching locals.pkr.hcl logic
+  source_dir = "#{BUILDS_DIR}/build_files/packer-#{os_name}-#{os_version}-#{os_arch}-#{provider}"
+  dest_dir = "ovf/packer-#{os_name}-#{os_version}-#{os_arch}-#{provider}"
+  base_name = "#{os_name}-#{os_version}-#{os_arch}"
+
+  puts "#{YELLOW}Exporting OVF artifacts to #{dest_dir}#{RESET}"
+
+  FileUtils.mkdir_p(dest_dir)
+
+  # Copy OVF files
+  %w[.ovf .vmdk .mf].each do |ext|
+    src_file = File.join(source_dir, "#{base_name}#{ext}")
+    if File.exist?(src_file)
+      FileUtils.cp(src_file, dest_dir, verbose: true)
+    else
+      puts "#{YELLOW}Warning: #{src_file} not found, skipping#{RESET}"
+    end
+  end
+
+  puts "#{GREEN}OVF export complete: #{dest_dir}#{RESET}"
+end
+
 ##@ General
 
 desc 'Display help message'
@@ -187,6 +228,9 @@ task build: :init do
 
   success = system("packer build -var-file=#{var_file} #{extra_vars} #{template_dir}")
 
+  # Export OVF artifacts if requested and build succeeded
+  export_ovf_artifacts(var_file, provider) if success
+
   exit 1 unless success
 end
 
@@ -216,6 +260,9 @@ task ovf_clean: :init do
   puts "#{GREEN}Building CLEAN OVF from #{var_file} (no provisioners)#{RESET}"
 
   success = system("packer build #{extra_vars} -var-file=#{var_file} #{template_dir}")
+
+  # Export OVF artifacts if requested and build succeeded
+  export_ovf_artifacts(var_file, provider) if success
 
   exit 1 unless success
 end
@@ -818,4 +865,3 @@ task :vagrant_metadata do
   File.write(metadata_path, metadata)
   puts "#{GREEN}Wrote Vagrant metadata: #{metadata_path}#{RESET}"
 end
-

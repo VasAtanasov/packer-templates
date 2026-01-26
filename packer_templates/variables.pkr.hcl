@@ -142,12 +142,6 @@ variable "keep_input_artifact" {
   description = "Keep intermediate build artifacts (VM files) after creating .box file"
 }
 
-variable "export_ovf" {
-  type        = bool
-  default     = false
-  description = "Export OVF files to ovf/ directory after build (for reuse in subsequent builds)"
-}
-
 // -----------------------------------------------------------------------------
 // HTTP Server (for preseed/kickstart files)
 // -----------------------------------------------------------------------------

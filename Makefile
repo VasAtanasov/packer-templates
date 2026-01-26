@@ -108,12 +108,33 @@ endif
 	if [ -n "$(KEEP_INPUT_ARTIFACT)" ]; then \
 		extra_vars="$$extra_vars -var=keep_input_artifact=$(KEEP_INPUT_ARTIFACT)"; \
 	fi; \
-	echo -e "$(GREEN)Building from $$var_file$(RESET)"; \
-	if [ -n "$(VARIANT)" ]; then echo -e "$(YELLOW)Variant: $(VARIANT)$(RESET)"; fi; \
-	packer build \
-		-var-file=$$var_file \
-		$$extra_vars \
-		$$template_dir
+		echo -e "$(GREEN)Building from $$var_file$(RESET)"; \
+		if [ -n "$(VARIANT)" ]; then echo -e "$(YELLOW)Variant: $(VARIANT)$(RESET)"; fi; \
+		packer build \
+			-var-file=$$var_file \
+			$$extra_vars \
+			$$template_dir; \
+		# Export OVF artifacts when EXPORT_OVF=true and build succeeded
+		if [ -n "$(EXPORT_OVF)" ] && [ "$(EXPORT_OVF)" = "true" ]; then \
+			os_name=$$(sed -n 's/^\s*os_name\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+			os_version=$$(sed -n 's/^\s*os_version\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+			os_arch=$$(sed -n 's/^\s*os_arch\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+			provider="$${PROVIDER:-virtualbox}"; \
+			source_dir="$(BUILDS_DIR)/build_files/packer-$$os_name-$$os_version-$$os_arch-$$provider"; \
+			dest_dir="ovf/packer-$$os_name-$$os_version-$$os_arch-$$provider"; \
+			base_name="$$os_name-$$os_version-$$os_arch"; \
+			echo -e "$(YELLOW)Exporting OVF artifacts to $$dest_dir$(RESET)"; \
+			mkdir -p "$$dest_dir"; \
+			for ext in .ovf .vmdk .mf; do \
+				src_file="$$source_dir/$$base_name$$ext"; \
+				if [ -f "$$src_file" ]; then \
+					cp -v "$$src_file" "$$dest_dir/"; \
+				else \
+					echo -e "$(YELLOW)Warning: $$src_file not found, skipping$(RESET)"; \
+				fi; \
+			done; \
+			echo -e "$(GREEN)OVF export complete: $$dest_dir$(RESET)"; \
+		fi
 
 .PHONY: ovf-clean
 ovf-clean: init ## Build a clean OVF (no provisioners) for quick testing (usage: make ovf-clean TEMPLATE=debian/12-x86_64.pkrvars.hcl [KEEP_INPUT_ARTIFACT=true] [EXPORT_OVF=true])
@@ -124,18 +145,39 @@ ifndef TEMPLATE
 endif
 	@template_dir=$(TEMPLATE_DIR_BASE); \
 	var_file=$(PKRVARS_DIR)/$(TEMPLATE); \
-	extra_vars="-var=skip_provisioners=true -var=keep_input_artifact=true -var=export_ovf=true"; \
-	if [ -n "$(KEEP_INPUT_ARTIFACT)" ]; then \
-		extra_vars="$$extra_vars -var=keep_input_artifact=$(KEEP_INPUT_ARTIFACT)"; \
-	fi; \
-	if [ -n "$(EXPORT_OVF)" ]; then \
-		extra_vars="$$extra_vars -var=export_ovf=$(EXPORT_OVF)"; \
-	fi; \
-	echo -e "$(GREEN)Building CLEAN OVF from $$var_file (no provisioners)$(RESET)"; \
-	packer build \
-		$$extra_vars \
-		-var-file=$$var_file \
-		$$template_dir
+		extra_vars="-var=skip_provisioners=true -var=keep_input_artifact=true -var=export_ovf=true"; \
+		if [ -n "$(KEEP_INPUT_ARTIFACT)" ]; then \
+			extra_vars="$$extra_vars -var=keep_input_artifact=$(KEEP_INPUT_ARTIFACT)"; \
+		fi; \
+		if [ -n "$(EXPORT_OVF)" ]; then \
+			extra_vars="$$extra_vars -var=export_ovf=$(EXPORT_OVF)"; \
+		fi; \
+		echo -e "$(GREEN)Building CLEAN OVF from $$var_file (no provisioners)$(RESET)"; \
+		packer build \
+			$$extra_vars \
+			-var-file=$$var_file \
+			$$template_dir; \
+		# Export OVF artifacts when EXPORT_OVF=true and build succeeded
+		if [ -n "$(EXPORT_OVF)" ] && [ "$(EXPORT_OVF)" = "true" ]; then \
+			os_name=$$(sed -n 's/^\s*os_name\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+			os_version=$$(sed -n 's/^\s*os_version\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+			os_arch=$$(sed -n 's/^\s*os_arch\s*=\s*"\(.*\)".*/\1/p' $$var_file | head -n1); \
+			provider="$${PROVIDER:-virtualbox}"; \
+			source_dir="$(BUILDS_DIR)/build_files/packer-$$os_name-$$os_version-$$os_arch-$$provider"; \
+			dest_dir="ovf/packer-$$os_name-$$os_version-$$os_arch-$$provider"; \
+			base_name="$$os_name-$$os_version-$$os_arch"; \
+			echo -e "$(YELLOW)Exporting OVF artifacts to $$dest_dir$(RESET)"; \
+			mkdir -p "$$dest_dir"; \
+			for ext in .ovf .vmdk .mf; do \
+				src_file="$$source_dir/$$base_name$$ext"; \
+				if [ -f "$$src_file" ]; then \
+					cp -v "$$src_file" "$$dest_dir/"; \
+				else \
+					echo -e "$(YELLOW)Warning: $$src_file not found, skipping$(RESET)"; \
+				fi; \
+			done; \
+			echo -e "$(GREEN)OVF export complete: $$dest_dir$(RESET)"; \
+		fi
 
 .PHONY: build-all
 build-all: init ## Build all boxes for current TARGET_OS

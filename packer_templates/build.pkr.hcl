@@ -158,22 +158,5 @@ build {
     vagrantfile_template = null
     keep_input_artifact  = var.keep_input_artifact
   }
-
-  // ===========================================================================
-  // Post-Processor: Export OVF for Reuse
-  // ===========================================================================
-  post-processor "shell-local" {
-    only = var.export_ovf ? local.enabled_sources : []
-    
-    inline = [
-      "echo 'Exporting OVF files to ${local.ovf_export_dir}...'",
-      "mkdir -p ${local.ovf_export_dir}",
-      "cp -v ${local.ovf_source_dir}/${local.ovf_base_name}.ovf ${local.ovf_export_dir}/ || true",
-      "cp -v ${local.ovf_source_dir}/${local.ovf_base_name}.vmdk ${local.ovf_export_dir}/ || true",
-      "cp -v ${local.ovf_source_dir}/${local.ovf_base_name}.mf ${local.ovf_export_dir}/ || true",
-      "echo 'OVF export complete: ${local.ovf_export_dir}/${local.ovf_base_name}.ovf'",
-      "ls -lh ${local.ovf_export_dir}/"
-    ]
-  }
 }
 
