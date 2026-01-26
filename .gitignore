@@ -139,3 +139,4 @@ fabric.properties
 ### Vagrant Patch ###
 
 # End of https://www.toptal.com/developers/gitignore/api/packer,vagrant,rubymine+all
+.sisyphus
