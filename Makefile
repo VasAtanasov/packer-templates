@@ -116,17 +116,20 @@ endif
 		$$template_dir
 
 .PHONY: ovf-clean
-ovf-clean: init ## Build a clean OVF (no provisioners) for quick testing (usage: make ovf-clean TEMPLATE=debian/12-x86_64.pkrvars.hcl [KEEP_INPUT_ARTIFACT=true])
+ovf-clean: init ## Build a clean OVF (no provisioners) for quick testing (usage: make ovf-clean TEMPLATE=debian/12-x86_64.pkrvars.hcl [KEEP_INPUT_ARTIFACT=true] [EXPORT_OVF=true])
 ifndef TEMPLATE
 	@echo -e "$(RED)Error: TEMPLATE variable not set$(RESET)"
-	@echo "Usage: make ovf-clean TEMPLATE=debian/12-x86_64.pkrvars.hcl [KEEP_INPUT_ARTIFACT=true]"
+	@echo "Usage: make ovf-clean TEMPLATE=debian/12-x86_64.pkrvars.hcl [KEEP_INPUT_ARTIFACT=true] [EXPORT_OVF=true]"
 	@exit 1
 endif
 	@template_dir=$(TEMPLATE_DIR_BASE); \
 	var_file=$(PKRVARS_DIR)/$(TEMPLATE); \
-	extra_vars="-var=skip_provisioners=true"; \
+	extra_vars="-var=skip_provisioners=true -var=keep_input_artifact=true -var=export_ovf=true"; \
 	if [ -n "$(KEEP_INPUT_ARTIFACT)" ]; then \
 		extra_vars="$$extra_vars -var=keep_input_artifact=$(KEEP_INPUT_ARTIFACT)"; \
+	fi; \
+	if [ -n "$(EXPORT_OVF)" ]; then \
+		extra_vars="$$extra_vars -var=export_ovf=$(EXPORT_OVF)"; \
 	fi; \
 	echo -e "$(GREEN)Building CLEAN OVF from $$var_file (no provisioners)$(RESET)"; \
 	packer build \
@@ -212,6 +215,10 @@ endif
 debian-12: ## Build Debian 12 x86_64 base box
 	@$(MAKE) build TEMPLATE=debian/12-x86_64.pkrvars.hcl
 
+.PHONY: debian-12-clean-ovf
+debian-12-clean-ovf: ## Build Debian 12 x86_64 clean OVF (no provisioners, auto-export to ovf/)
+	@$(MAKE) ovf-clean TEMPLATE=debian/12-x86_64.pkrvars.hcl
+
 .PHONY: debian-12-k8s
 debian-12-k8s: ## Build Debian 12 x86_64 Kubernetes node box
 	@$(MAKE) build TEMPLATE=debian/12-x86_64.pkrvars.hcl VARIANT=k8s-node
@@ -247,6 +254,10 @@ debian-12-docker-ovf: ## Build Debian 12 x86_64 Docker host box from existing OV
 .PHONY: debian-13
 debian-13: ## Build Debian 13 x86_64 base box
 	@$(MAKE) build TEMPLATE=debian/13-x86_64.pkrvars.hcl
+
+.PHONY: debian-13-clean-ovf
+debian-13-clean-ovf: ## Build Debian 13 x86_64 clean OVF (no provisioners, auto-export to ovf/)
+	@$(MAKE) ovf-clean TEMPLATE=debian/13-x86_64.pkrvars.hcl
 
 .PHONY: debian-13-ovf
 debian-13-ovf: ## Build Debian 13 x86_64 base box from existing OVF

@@ -190,23 +190,27 @@ task build: :init do
   exit 1 unless success
 end
 
-desc 'Build a clean OVF (no provisioners) for quick testing (usage: rake ovf_clean TEMPLATE=debian/12-x86_64.pkrvars.hcl [KEEP_INPUT_ARTIFACT=true])'
+desc 'Build a clean OVF (no provisioners) for quick testing (usage: rake ovf_clean TEMPLATE=debian/12-x86_64.pkrvars.hcl [KEEP_INPUT_ARTIFACT=true] [EXPORT_OVF=true])'
 task ovf_clean: :init do
   template = ENV['TEMPLATE']
   keep_input_artifact = ENV['KEEP_INPUT_ARTIFACT']
+  export_ovf = ENV['EXPORT_OVF']
 
   unless template
     puts "#{RED}Error: TEMPLATE variable not set#{RESET}"
-    puts "Usage: rake ovf_clean TEMPLATE=debian/12-x86_64.pkrvars.hcl [KEEP_INPUT_ARTIFACT=true]"
+    puts "Usage: rake ovf_clean TEMPLATE=debian/12-x86_64.pkrvars.hcl [KEEP_INPUT_ARTIFACT=true] [EXPORT_OVF=true]"
     exit 1
   end
 
   template_dir = TEMPLATE_DIR_BASE
   var_file = File.join(PKRVARS_DIR, template)
 
-  extra_vars = "-var=skip_provisioners=true"
+  extra_vars = "-var=skip_provisioners=true -var=keep_input_artifact=true -var=export_ovf=true"
   if keep_input_artifact && !keep_input_artifact.empty?
     extra_vars += " -var=keep_input_artifact=#{keep_input_artifact}"
+  end
+  if export_ovf && !export_ovf.empty?
+    extra_vars += " -var=export_ovf=#{export_ovf}"
   end
 
   puts "#{GREEN}Building CLEAN OVF from #{var_file} (no provisioners)#{RESET}"
@@ -320,6 +324,14 @@ task :debian_12 do
   Rake::Task[:build].invoke
 end
 
+desc 'Build Debian 12 x86_64 clean OVF (no provisioners, auto-export to ovf/)'
+task :debian_12_clean_ovf do
+  ENV['TEMPLATE'] = 'debian/12-x86_64.pkrvars.hcl'
+  ENV['PROVIDER'] = 'virtualbox'
+  ENV['TARGET_OS'] = 'debian'
+  Rake::Task[:ovf_clean].invoke
+end
+
 desc 'Build Debian 12 x86_64 Kubernetes node box'
 task :debian_12_k8s do
   ENV['TEMPLATE'] = 'debian/12-x86_64.pkrvars.hcl'
@@ -422,6 +434,14 @@ task :debian_13 do
   ENV['PROVIDER'] = 'virtualbox'
   ENV['TARGET_OS'] = 'debian'
   Rake::Task[:build].invoke
+end
+
+desc 'Build Debian 13 x86_64 clean OVF (no provisioners, auto-export to ovf/)'
+task :debian_13_clean_ovf do
+  ENV['TEMPLATE'] = 'debian/13-x86_64.pkrvars.hcl'
+  ENV['PROVIDER'] = 'virtualbox'
+  ENV['TARGET_OS'] = 'debian'
+  Rake::Task[:ovf_clean].invoke
 end
 
 desc 'Build Debian 13 x86_64 base box from existing OVF'

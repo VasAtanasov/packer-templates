@@ -61,6 +61,12 @@ locals {
   // HTTP directory: use OS family-specific directory
   http_directory = var.http_directory == null ? "${path.root}/http/${local.os_family}" : var.http_directory
 
+  // OVF export paths (for reuse in subsequent builds)
+  ovf_export_dir      = "${path.root}/../ovf/packer-${var.os_name}-${var.os_version}-${var.os_arch}-${local.active_provider_families[0]}"
+  ovf_base_name       = "${var.os_name}-${var.os_version}-${var.os_arch}"
+  ovf_source_dir      = "${local.output_directory}-${local.active_provider_families[0]}"
+  should_export_ovf   = var.export_ovf && var.primary_source == "virtualbox-iso"
+
   // -----------------------------------------------------------------------------
   // Library Paths (persistent during build)
   // -----------------------------------------------------------------------------
