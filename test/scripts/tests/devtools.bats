@@ -68,6 +68,15 @@ exit 0
 EOF
     chmod +x "${_TEST_DIR}/bin/direnv"
 
+    # Fake dpkg-query to simulate packages NOT installed (forces apt-get install)
+    cat > "${_TEST_DIR}/bin/dpkg-query" <<'EOF'
+#!/usr/bin/env bash
+# Simulate package not installed for test purposes
+echo "dpkg-query: package '$2' is not installed" >&2
+exit 1
+EOF
+    chmod +x "${_TEST_DIR}/bin/dpkg-query"
+
     # Reset log
     : > "${_TEST_DIR}/log"
     unset APT_UPDATED_TS || true
@@ -85,7 +94,9 @@ log_contains() {
 }
 
 log_count() {
-    grep -c "$1" "${_TEST_DIR}/log" 2>/dev/null || echo 0
+    local count
+    count=$(grep -c "$1" "${_TEST_DIR}/log" 2>/dev/null) || count=0
+    echo "$count"
 }
 
 # =============================================================================

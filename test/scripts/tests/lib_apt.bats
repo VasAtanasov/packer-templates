@@ -63,11 +63,15 @@ teardown() {
 }
 
 count_updates() {
-  grep -c "^apt-get update" /tmp/apt-test/log 2>/dev/null || echo 0
+  local count
+  count=$(grep -c "^apt-get update" /tmp/apt-test/log 2>/dev/null) || count=0
+  echo "$count"
 }
 
 count_installs() {
-  grep -c "^apt-get install" /tmp/apt-test/log 2>/dev/null || echo 0
+  local count
+  count=$(grep -c "^apt-get install" /tmp/apt-test/log 2>/dev/null) || count=0
+  echo "$count"
 }
 
 last_install_line() {
