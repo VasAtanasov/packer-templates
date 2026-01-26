@@ -192,7 +192,7 @@ locals {
   // -----------------------------------------------------------------------------
   // When skip_provisioners is true, except all enabled sources (skip provisioners)
   // When false, except nothing (run provisioners normally)
-  provisioner_except = var.skip_provisioners ? local.source_names : null
+  provisioner_except = var.skip_provisioners ? local.enabled_sources : null
 
   // -----------------------------------------------------------------------------
   // Provisioner Execute Command
