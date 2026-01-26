@@ -241,6 +241,10 @@ debian-12-docker-ovf: ## Build Debian 12 x86_64 Docker host box from existing OV
 debian-13: ## Build Debian 13 x86_64 base box
 	@$(MAKE) build TEMPLATE=debian/13-x86_64.pkrvars.hcl
 
+.PHONY: debian-13-docker
+debian-13-docker: ## Build Debian 13 x86_64 Docker host box
+	@$(MAKE) build TEMPLATE=debian/13-x86_64.pkrvars.hcl VARIANT=docker-host
+
 ##@ Quick Builds (VirtualBox + AlmaLinux)
 
 .PHONY: almalinux-9

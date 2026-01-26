@@ -394,6 +394,15 @@ task :debian_13 do
   Rake::Task[:build].invoke
 end
 
+desc 'Build Debian 13 x86_64 Docker host box'
+task :debian_13_docker do
+  ENV['TEMPLATE'] = 'debian/13-x86_64.pkrvars.hcl'
+  ENV['VARIANT'] = 'docker-host'
+  ENV['PROVIDER'] = 'virtualbox'
+  ENV['TARGET_OS'] = 'debian'
+  Rake::Task[:build].invoke
+end
+
 desc 'Build AlmaLinux 8 x86_64 base box'
 desc 'Build AlmaLinux 9 x86_64 base box'
 task :almalinux_9 do
