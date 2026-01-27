@@ -81,13 +81,14 @@ init: ## Initialize Packer plugins
 	@cd $(TEMPLATE_DIR_BASE) && packer init .
 
 .PHONY: build
-build: init ## Build a specific box (usage: make build TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node] [KEEP_INPUT_ARTIFACT=true])
+build: init ## Build a specific box (usage: make build TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node] [DEBUG=1] [KEEP_INPUT_ARTIFACT=true])
 ifndef TEMPLATE
 	@echo -e "$(RED)Error: TEMPLATE variable not set$(RESET)"
-	@echo "Usage: make build TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node] [KEEP_INPUT_ARTIFACT=true]"
+	@echo "Usage: make build TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node] [DEBUG=1] [KEEP_INPUT_ARTIFACT=true]"
 	@exit 1
 endif
-	@template_dir=$(TEMPLATE_DIR_BASE); \
+	@mkdir -p $(BUILDS_DIR); \
+	template_dir=$(TEMPLATE_DIR_BASE); \
 	var_file=$(PKRVARS_DIR)/$(TEMPLATE); \
 	extra_vars=""; \
 	if [ -n "$(VARIANT)" ]; then \
@@ -107,6 +108,11 @@ endif
 	fi; \
 	if [ -n "$(KEEP_INPUT_ARTIFACT)" ]; then \
 		extra_vars="$$extra_vars -var=keep_input_artifact=$(KEEP_INPUT_ARTIFACT)"; \
+	fi; \
+	if [ -n "$(DEBUG)" ] && [ "$(DEBUG)" = "1" ]; then \
+		export PACKER_LOG=1; \
+		export PACKER_LOG_PATH="$(BUILDS_DIR)/packer-debug.log"; \
+		echo -e "$(YELLOW)Debug logging enabled: $(BUILDS_DIR)/packer-debug.log$(RESET)"; \
 	fi; \
 		echo -e "$(GREEN)Building from $$var_file$(RESET)"; \
 		if [ -n "$(VARIANT)" ]; then echo -e "$(YELLOW)Variant: $(VARIANT)$(RESET)"; fi; \

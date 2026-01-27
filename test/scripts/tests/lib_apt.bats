@@ -13,6 +13,10 @@ setup() {
   export _APT_TEST_DIR=/tmp/apt-test
   rm -rf "${_APT_TEST_DIR}" && mkdir -p "${_APT_TEST_DIR}"/bin
   export PATH="${_APT_TEST_DIR}/bin:${PATH}"
+  
+  # Create fake directories for APT operations
+  mkdir -p /etc/apt/sources.list.d 2>/dev/null || true
+  mkdir -p /etc/apt/keyrings 2>/dev/null || true
 
   # Fake apt-get that logs invocations
   cat > "${_APT_TEST_DIR}/bin/apt-get" <<'EOF'
@@ -53,13 +57,16 @@ EOF
 
   # Reset log and env flags used by lib
   : > /tmp/apt-test/log
-  unset APT_UPDATED_TS || true
+  export APT_UPDATED_TS=0
   export APT_CACHE_INVALIDATED=0
   export APT_UPDATE_TTL=9999
 }
 
 teardown() {
   rm -rf "${_APT_TEST_DIR}" || true
+  # Clean up test APT files created during tests
+  rm -f /etc/apt/sources.list.d/test-bats.list 2>/dev/null || true
+  rm -f /etc/apt/keyrings/test-bats.gpg 2>/dev/null || true
 }
 
 count_updates() {
@@ -79,20 +86,24 @@ last_install_line() {
 }
 
 @test "ensure_apt_updated runs update once and respects TTL" {
-  run bash -lc 'source "$LIB_CORE_SH"; source "$LIB_OS_SH"; lib::ensure_apt_updated; lib::ensure_apt_updated'
+  run bash -c 'export APT_UPDATED_TS=0 APT_CACHE_INVALIDATED=0 APT_UPDATE_TTL=9999; \
+    source "$LIB_CORE_SH"; source "$LIB_OS_SH"; \
+    lib::ensure_apt_updated; lib::ensure_apt_updated'
   [ "$status" -eq 0 ]
   [ "$(count_updates)" -eq 1 ]
 }
 
 @test "ensure_apt_source_file invalidates cache and forces next update" {
   # Pretend we just updated recently
-  export APT_UPDATED_TS="$(date +%s)"
-  export APT_CACHE_INVALIDATED=0
+  local now
+  now="$(date +%s)"
   : > /tmp/apt-test/log
 
-  run bash -lc 'source "$LIB_CORE_SH"; source "$LIB_OS_SH"; lib::ensure_apt_source_file \
-    "/etc/apt/sources.list.d/test-bats.list" \
-    "deb [arch=amd64] http://example.invalid stable main"; lib::ensure_apt_updated'
+  run bash -c "export APT_UPDATED_TS=${now} APT_CACHE_INVALIDATED=0 APT_UPDATE_TTL=9999; \
+    source \"\$LIB_CORE_SH\"; source \"\$LIB_OS_SH\"; \
+    lib::ensure_apt_source_file '/etc/apt/sources.list.d/test-bats.list' \
+      'deb [arch=amd64] http://example.invalid stable main'; \
+    lib::ensure_apt_updated"
   [ "$status" -eq 0 ]
   # Should have forced one update regardless of TTL
   [ "$(count_updates)" -ge 1 ]
@@ -100,20 +111,24 @@ last_install_line() {
 
 @test "ensure_apt_key_from_url installs key and invalidates cache" {
   : > /tmp/apt-test/log
-  run bash -lc 'source "$LIB_CORE_SH"; source "$LIB_OS_SH"; lib::ensure_apt_key_from_url \
-    "https://example.invalid/key" \
-    "/etc/apt/keyrings/test-bats.gpg"'
+  run bash -c 'export APT_UPDATED_TS=0 APT_CACHE_INVALIDATED=0 APT_UPDATE_TTL=9999; \
+    source "$LIB_CORE_SH"; source "$LIB_OS_SH"; \
+    lib::ensure_apt_key_from_url "https://example.invalid/key" "/etc/apt/keyrings/test-bats.gpg"'
   [ "$status" -eq 0 ]
   [ -f /etc/apt/keyrings/test-bats.gpg ]
 
-  run bash -lc 'source "$LIB_CORE_SH"; source "$LIB_OS_SH"; lib::ensure_apt_updated'
+  run bash -c 'export APT_UPDATED_TS=0 APT_CACHE_INVALIDATED=1 APT_UPDATE_TTL=9999; \
+    source "$LIB_CORE_SH"; source "$LIB_OS_SH"; \
+    lib::ensure_apt_updated'
   [ "$status" -eq 0 ]
   [ "$(count_updates)" -ge 1 ]
 }
 
 @test "ensure_packages does one update and one bulk install" {
   : > /tmp/apt-test/log
-  run bash -lc 'source "$LIB_CORE_SH"; source "$LIB_OS_SH"; lib::ensure_packages foo-bar-baz foo-bar-baz2 foo-bar-baz3'
+  run bash -c 'export APT_UPDATED_TS=0 APT_CACHE_INVALIDATED=0 APT_UPDATE_TTL=9999; \
+    source "$LIB_CORE_SH"; source "$LIB_OS_SH"; \
+    lib::ensure_packages foo-bar-baz foo-bar-baz2 foo-bar-baz3'
   [ "$status" -eq 0 ]
   # Exactly one update and one install
   [ "$(count_updates)" -eq 1 ]

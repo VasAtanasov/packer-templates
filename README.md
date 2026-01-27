@@ -60,6 +60,8 @@ make debian-12-docker   # Docker host variant
 | `make clean`                                                        | Remove build artifacts                         |
 | `make list-templates`                                               | Show available templates                       |
 | `make debug`                                                        | Show configuration (PROVIDER, TARGET_OS, etc.) |
+| `make build TEMPLATE=... DEBUG=1`                                   | Build with verbose logging to builds/packer-debug.log |
+| `make debian-12 DEBUG=1`                                            | Any convenience target supports DEBUG=1        |
 | `make help`                                                         | Show all available commands                    |
 
 **Windows users:** Replace `make` with `rake` and use underscores (e.g., `rake debian_12_k8s`)
@@ -186,6 +188,53 @@ rake build TEMPLATE=debian/12-x86_64.pkrvars.hcl TARGET_OS=debian
 ```
 
 ## Troubleshooting
+
+### Debugging and Logging
+
+**Enable verbose logging to see which scripts are executed:**
+
+```bash
+# Linux/macOS - All convenience targets support DEBUG=1
+make debian-12 DEBUG=1
+make debian-12-k8s DEBUG=1
+make build TEMPLATE=debian/12-x86_64.pkrvars.hcl DEBUG=1
+
+# Windows
+rake debian_12 DEBUG=1
+rake debian_12_k8s DEBUG=1
+rake build TEMPLATE=debian/12-x86_64.pkrvars.hcl DEBUG=1
+```
+
+**What you'll see with DEBUG=1:**
+- Detailed logs written to `builds/packer-debug.log`
+- Every script path being executed by Packer
+- Full output from each provisioner
+- Environment variables passed to scripts (LIB_CORE_SH, LIB_OS_SH, etc.)
+- Plugin messages prefixed by provider (e.g., `virtualbox-iso: Running script...`)
+
+**Manual Packer logging (without Make/Rake):**
+
+```bash
+# Linux/macOS
+export PACKER_LOG=1
+export PACKER_LOG_PATH="builds/packer-debug.log"
+packer build -var-file=os_pkrvars/debian/12-x86_64.pkrvars.hcl packer_templates/
+
+# Windows PowerShell
+$env:PACKER_LOG=1
+$env:PACKER_LOG_PATH="builds/packer-debug.log"
+packer build -var-file=os_pkrvars/debian/12-x86_64.pkrvars.hcl packer_templates/
+```
+
+**Interactive debugging (step-by-step execution):**
+
+```bash
+# Pauses between each provisioner - press Enter to continue
+packer build -debug -var-file=os_pkrvars/debian/12-x86_64.pkrvars.hcl packer_templates/
+
+# On failure, ask what to do (cleanup, abort, or retry)
+packer build -on-error=ask -var-file=os_pkrvars/debian/12-x86_64.pkrvars.hcl packer_templates/
+```
 
 ### Guest Additions
 
@@ -348,6 +397,7 @@ in complex world of base box building.
 
 | Version | Date       | Changes                                                                                                                                                                                                                                   |
 |---------|------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 3.1.1   | 2026-01-27 | Added: DEBUG flag support in Makefile/Rakefile for verbose logging; added Debugging and Logging section to Troubleshooting.                                                                                                              |
 | 3.1.0   | 2025-11-20 | Changed: Removed ARM support and unsupported AlmaLinux versions from documentation. Added OVF build commands.                                                                                                                             |
 | 3.0.1   | 2025-11-18 | Related projects section added; minor formatting fixes.                                                                                                                                                                                   |
 | 3.0.0   | 2025-11-17 | Consolidated template structure; all `.pkr.hcl` files now in `packer_templates/` root; updated all paths, build commands, and architecture sections; simplified provider/OS workflow.                                                     |

@@ -218,7 +218,9 @@ if ! declare -F lib::ensure_directory >/dev/null 2>&1; then
 lib::ensure_directory() {
     local dir=$1 owner=${2:-root} mode=${3:-0755}
     if [ -d "$dir" ]; then
-        lib::log "$dir (exists)"
+        lib::log "$dir (exists, ensuring ownership and permissions)"
+        chown "$owner" "$dir"
+        chmod "$mode" "$dir"
         return 0
     fi
     lib::log "Creating directory $dir..."

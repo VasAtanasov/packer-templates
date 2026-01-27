@@ -130,38 +130,9 @@ locals {
   selected_variant_scripts = var.variant == "base" ? [] : lookup(local.variant_scripts, var.variant, [])
 
   // -----------------------------------------------------------------------------
-  // Custom Scripts Discovery (User Extensibility)
+  // Custom Scripts Runner
   // -----------------------------------------------------------------------------
-  // Support three levels with precedence: variant → provider → OS family
-  // Only include files matching two-digit prefix pattern (??-*.sh)
-  custom_scripts_dir_base    = "${path.root}/scripts/custom/${local.os_family}"
-  custom_scripts_variant_dir = "${local.custom_scripts_dir_base}/${var.variant}"
-
-  custom_scripts_os = fileexists(local.custom_scripts_dir_base) ? [
-    for f in sort(fileset(local.custom_scripts_dir_base, "??-*.sh")) :
-    "${local.custom_scripts_dir_base}/${f}"
-  ] : []
-
-  custom_scripts_variant = fileexists(local.custom_scripts_variant_dir) ? [
-    for f in sort(fileset(local.custom_scripts_variant_dir, "??-*.sh")) :
-    "${local.custom_scripts_variant_dir}/${f}"
-  ] : []
-
-  custom_scripts_provider = flatten([
-    for family in local.active_provider_families : (
-      fileexists("${local.custom_scripts_dir_base}/${family}") ? [
-        for f in sort(fileset("${local.custom_scripts_dir_base}/${family}", "??-*.sh")) :
-        "${local.custom_scripts_dir_base}/${family}/${f}"
-      ] : []
-    )
-  ])
-
-  // Final list with precedence and duplicates removed
-  custom_scripts = distinct(concat(
-    local.custom_scripts_variant,
-    local.custom_scripts_provider,
-    local.custom_scripts_os,
-  ))
+  custom_scripts_runner = "${path.root}/scripts/_common/run_custom_scripts.sh"
 
   // -----------------------------------------------------------------------------
   // Consolidated Provisioning Script Lists (Semantic Names)
@@ -182,8 +153,8 @@ locals {
     # Variant-specific configuration (includes variant cleanup)
     local.selected_variant_scripts,
 
-    # User extension scripts
-    local.custom_scripts,
+    # User extension scripts (executed via runner script)
+    [local.custom_scripts_runner],
 
     # Base OS cleanup (runs after variants clean themselves)
     lookup(local.cleanup_scripts, local.os_family, [])

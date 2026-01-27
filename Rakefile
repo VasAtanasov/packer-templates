@@ -185,7 +185,7 @@ task :init do
   end
 end
 
-desc 'Build a specific box (usage: rake build TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node] [KEEP_INPUT_ARTIFACT=true])'
+desc 'Build a specific box (usage: rake build TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node] [DEBUG=1] [KEEP_INPUT_ARTIFACT=true])'
 task build: :init do
   template = ENV['TEMPLATE']
   variant = ENV['VARIANT']
@@ -193,13 +193,15 @@ task build: :init do
   ovf_source_path = ENV['OVF_SOURCE_PATH']
   ovf_checksum = ENV['OVF_CHECKSUM']
   keep_input_artifact = ENV['KEEP_INPUT_ARTIFACT']
+  debug = ENV['DEBUG']
 
   unless template
     puts "#{RED}Error: TEMPLATE variable not set#{RESET}"
-    puts "Usage: rake build TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node] [KEEP_INPUT_ARTIFACT=true]"
+    puts "Usage: rake build TEMPLATE=debian/12-x86_64.pkrvars.hcl [VARIANT=k8s-node] [DEBUG=1] [KEEP_INPUT_ARTIFACT=true]"
     exit 1
   end
 
+  FileUtils.mkdir_p(BUILDS_DIR)
   template_dir = TEMPLATE_DIR_BASE
   var_file = File.join(PKRVARS_DIR, template)
 
@@ -221,6 +223,12 @@ task build: :init do
   end
   if keep_input_artifact && !keep_input_artifact.empty?
     extra_vars += " -var=keep_input_artifact=#{keep_input_artifact}"
+  end
+
+  if debug && debug == '1'
+    ENV['PACKER_LOG'] = '1'
+    ENV['PACKER_LOG_PATH'] = File.join(BUILDS_DIR, 'packer-debug.log')
+    puts "#{YELLOW}Debug logging enabled: #{ENV['PACKER_LOG_PATH']}#{RESET}"
   end
 
   puts "#{GREEN}Building from #{var_file}#{RESET}"

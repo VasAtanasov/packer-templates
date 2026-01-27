@@ -12,10 +12,6 @@ bootstrap.sh
 /builds/
 .claude/
 
-# Custom provisioning scripts (user-specific, not committed by default)
-packer_templates/scripts/custom/**/*.sh
-# Exception: devtools script for docker-host variant (committed to repo)
-!packer_templates/scripts/custom/debian/docker-host/20-install-devtools.sh
 # Created by https://www.toptal.com/developers/gitignore/api/packer,vagrant,rubymine+all
 # Edit at https://www.toptal.com/developers/gitignore?templates=packer,vagrant,rubymine+all
 

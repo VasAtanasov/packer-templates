@@ -77,9 +77,9 @@ exit 1
 EOF
     chmod +x "${_TEST_DIR}/bin/dpkg-query"
 
-    # Reset log
+    # Reset log and APT cache state
     : > "${_TEST_DIR}/log"
-    unset APT_UPDATED_TS || true
+    export APT_UPDATED_TS=0
     export APT_CACHE_INVALIDATED=0
     export APT_UPDATE_TTL=9999
 }
@@ -104,7 +104,9 @@ log_count() {
 # =============================================================================
 
 @test "direnv: lib::ensure_packages installs direnv" {
-    run bash -lc 'source "$LIB_CORE_SH"; source "$LIB_OS_SH"; lib::ensure_packages direnv'
+    run bash -c 'export APT_UPDATED_TS=0 APT_CACHE_INVALIDATED=0 APT_UPDATE_TTL=9999; \
+      source "$LIB_CORE_SH"; source "$LIB_OS_SH"; \
+      lib::ensure_packages direnv'
     [ "$status" -eq 0 ]
     log_contains "apt-get install"
     log_contains "direnv"
