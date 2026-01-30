@@ -32,6 +32,9 @@ PKRVARS_FILES := $(shell find $(PKRVARS_DIR)/$(TARGET_OS) -name "*.pkrvars.hcl" 
 # Build configuration
 PROVIDERS ?= virtualbox-iso.vm
 
+# Default version from VERSION file
+DEFAULT_VERSION := $(shell cat VERSION 2>/dev/null || echo 1.0.0)
+
 ##@ General
 
 .PHONY: help
@@ -461,19 +464,19 @@ endif
 		meta_name="$(BOX_NAME)"; \
 		if [ -z "$$meta_name" ]; then meta_name="$$box_name"; fi; \
 		meta_version="$(BOX_VERSION)"; \
-		if [ -z "$$meta_version" ]; then meta_version="0"; fi; \
+		if [ -z "$$meta_version" ]; then meta_version="$(DEFAULT_VERSION)"; fi; \
 	elif [ "$$variant" = "k8s-node" ]; then \
 		box_name="$$base_box_name-$$variant-$$k8s_version"; \
 		meta_name="$(BOX_NAME)"; \
 		if [ -z "$$meta_name" ]; then meta_name="$$base_box_name-$$variant"; fi; \
 		meta_version="$(BOX_VERSION)"; \
-		if [ -z "$$meta_version" ]; then meta_version="$$k8s_version"; fi; \
+		if [ -z "$$meta_version" ]; then meta_version="$(DEFAULT_VERSION)"; fi; \
 	else \
 		box_name="$$base_box_name-$$variant"; \
 		meta_name="$(BOX_NAME)"; \
 		if [ -z "$$meta_name" ]; then meta_name="$$box_name"; fi; \
 		meta_version="$(BOX_VERSION)"; \
-		if [ -z "$$meta_version" ]; then meta_version="0"; fi; \
+		if [ -z "$$meta_version" ]; then meta_version="$(DEFAULT_VERSION)"; fi; \
 	fi; \
 	box_dir=$(BUILDS_DIR)/build_complete; \
 	box_file="$$box_name.virtualbox.box"; \

@@ -30,6 +30,15 @@ def k8s_version
   ENV['K8S_VERSION'] || '1.33'
 end
 
+# Default version from VERSION file
+def default_version
+  if File.exist?('VERSION')
+    File.read('VERSION').strip
+  else
+    '1.0.0'
+  end
+end
+
 # Find all .pkrvars.hcl files for current target_os
 def pkrvars_files
   Dir.glob("#{PKRVARS_DIR}/#{target_os}/**/*.pkrvars.hcl").sort
@@ -836,10 +845,8 @@ task :vagrant_metadata do
   meta_version =
     if box_version_override && !box_version_override.empty?
       box_version_override
-    elsif variant == 'k8s-node'
-      k8s_ver
     else
-      '0'
+      default_version
     end
 
   box_dir = File.join(BUILDS_DIR, 'build_complete')

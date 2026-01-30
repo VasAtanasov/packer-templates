@@ -31,6 +31,7 @@ VMware and QEMU planned). The project uses a **consolidated template structure**
 in a single `packer_templates/` directory. Provider and OS selection happens via variables passed at build time.
 Currently focused on Debian 12/13 with VirtualBox, using a clear 3-phase provisioning approach. The project is
 host‑agnostic; no WSL2‑specific accommodations are required.
+It uses **Semantic Versioning** for all boxes, detailed in [docs/VERSIONING.md](docs/VERSIONING.md).
 
 ## Build Commands
 

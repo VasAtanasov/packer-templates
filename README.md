@@ -100,6 +100,24 @@ Provisioner strategy:
 - Phase 3b: Clear logs, temporary files, zero free space for better compression
 - Final: Remove build-only helpers (`/usr/local/lib/scripts/`)
 
+## Versioning Strategy
+
+This project uses **independent Semantic Versioning (X.Y.Z)** for all boxes.
+
+- **Base OS Boxes** (`vaatech/debian-12`):
+  - Minor: OS point releases (12.12 → 12.13)
+  - Patch: Bug fixes
+- **Purpose-Built Boxes** (`vaatech/kubernetes-1.33`):
+  - Minor: Software patch updates (k8s 1.33.3 → 1.33.7)
+  - Major: Breaking configuration changes
+  - **New Box:** Created for each software minor version (k8s 1.34 = `vaatech/kubernetes-1.34`)
+- **Additive Variants** (`vaatech/debian-12-docker-host`):
+  - Minor: OS point releases or software minor updates
+  - Patch: Bug fixes
+  - **New Box:** Created for OS major versions (`debian-13-docker-host`)
+
+See [docs/VERSIONING.md](docs/VERSIONING.md) for full details.
+
 ## Using Built Boxes
 
 After building, the `.box` file is located in `builds/build_complete/`:

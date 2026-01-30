@@ -9,6 +9,12 @@ and this project adheres to Semantic Versioning where practical.
 
 ### Added
 
+- `docs/VERSIONING.md`: Comprehensive versioning and naming strategy document.
+- `VERSION`: Repository-level version file (initial: 1.0.0).
+- `builds/metadata/`: Metadata JSON templates and README for Vagrant Cloud publishing.
+- Makefile: `vagrant-metadata` target now defaults to content of `VERSION` file.
+- README.md: Added Versioning Strategy summary.
+- AGENTS.md: Added reference to `docs/VERSIONING.md`.
 - Rake and Make tasks for building from OVF (`debian-12-ovf`, `almalinux-9-ovf`, `debian-12-k8s-ovf`, `almalinux-9-k8s-ovf`).
 - Root `AGENTS.md` refined: scope/precedence, minimum versions, HCL conventions, reproducibility, DoD, fast dev loop,
   security, and cross‑refs.
