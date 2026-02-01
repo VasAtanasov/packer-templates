@@ -118,7 +118,13 @@ endif
 		echo -e "$(YELLOW)Debug logging enabled: $(BUILDS_DIR)/packer-debug.log$(RESET)"; \
 	fi; \
 		echo -e "$(GREEN)Building from $$var_file$(RESET)"; \
-		if [ -n "$(VARIANT)" ]; then echo -e "$(YELLOW)Variant: $(VARIANT)$(RESET)"; fi; \
+		if [ -n "$(VARIANT)" ]; then \
+			variant_label="$(VARIANT)"; \
+			if [ "$(VARIANT)" = "docker-host" ]; then \
+				variant_label="$$variant_label $(DEFAULT_VERSION)"; \
+			fi; \
+			echo -e "$(YELLOW)Variant: $$variant_label$(RESET)"; \
+		fi; \
 		packer build \
 			-var-file=$$var_file \
 			$$extra_vars \

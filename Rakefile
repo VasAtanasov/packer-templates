@@ -241,7 +241,11 @@ task build: :init do
   end
 
   puts "#{GREEN}Building from #{var_file}#{RESET}"
-  puts "#{YELLOW}Variant: #{variant}#{RESET}" if variant && !variant.empty?
+  if variant && !variant.empty?
+    variant_label = variant
+    variant_label = "#{variant} #{default_version}" if variant == 'docker-host'
+    puts "#{YELLOW}Variant: #{variant_label}#{RESET}"
+  end
 
   success = system("packer build -var-file=#{var_file} #{extra_vars} #{template_dir}")
 

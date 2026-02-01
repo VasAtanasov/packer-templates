@@ -1,9 +1,9 @@
-// =============================================================================
+// ============================================================================
 // Consolidated Build Configuration
-// =============================================================================
+// ============================================================================
 // Provider-agnostic build orchestration and provisioning
 // Dynamically adapts based on enabled sources and provider capabilities
-// =============================================================================
+// ============================================================================
 
 build {
   // Use all enabled sources (explicit list, or derived from primary_source)
@@ -28,9 +28,9 @@ build {
       "install -d -m 0755 /usr/local/lib/scripts",
       "cp -r /tmp/packer-scripts/* /usr/local/lib/scripts/",
       // Normalize CRLF to LF for all shell scripts to avoid execution issues
-      "find /usr/local/lib/scripts -type f -name '*.sh' -exec sed -i 's/\r$//' {} +",
+      "find /usr/local/lib/scripts -type f -name '*.sh' -exec sed -i 's/\\r$//' {} +",
       "chmod -R 0755 /usr/local/lib/scripts",
-      "find /usr/local/lib/scripts -type f -name '*.sh' -exec chmod 0755 {} \;",
+      "find /usr/local/lib/scripts -type f -name '*.sh' -exec chmod 0755 {} \\;",
       "chown -R root:root /usr/local/lib/scripts"
     ]
     execute_command = local.execute_command

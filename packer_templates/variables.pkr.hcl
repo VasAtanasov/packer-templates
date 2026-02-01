@@ -303,7 +303,7 @@ variable "crio_version" {
 
 variable "docker_version" {
   type        = string
-  default     = ""
+  default     = "29.2.0"
   description = "Docker version to install for docker-host variant (e.g., '27.5' for latest patch, '27.5.1' for exact version). Empty string installs latest."
 }
 

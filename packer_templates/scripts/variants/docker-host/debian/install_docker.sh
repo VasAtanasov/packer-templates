@@ -82,10 +82,12 @@ main() {
         local apt_version="5:${docker_version}-*"
         
         # Verify version exists in repository
-        if ! apt-cache madison docker-ce | grep -q "${docker_version}"; then
+        local docker_versions
+        docker_versions="$(apt-cache madison docker-ce)"
+        if ! grep -q "${docker_version}" <<<"${docker_versions}"; then
             lib::error "Docker version ${docker_version} not found in repository"
             lib::error "Available versions:"
-            apt-cache madison docker-ce | head -n 10
+            printf '%s\n' "${docker_versions}" | sed -n '1,10p'
             return 1
         fi
         
@@ -99,7 +101,10 @@ main() {
             "docker-compose-plugin" || {
             lib::error "Failed to install Docker ${docker_version}"
             lib::error "Version may not exist in repository. Available versions:"
-            apt-cache madison docker-ce | head -n 10
+            if [ -z "${docker_versions}" ]; then
+                docker_versions="$(apt-cache madison docker-ce)"
+            fi
+            printf '%s\n' "${docker_versions}" | sed -n '1,10p'
             return 1
         }
     fi
@@ -139,4 +144,3 @@ main() {
 }
 
 main "$@"
-
