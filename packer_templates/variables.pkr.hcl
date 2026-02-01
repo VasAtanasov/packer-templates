@@ -301,6 +301,12 @@ variable "crio_version" {
   description = "CRI-O version (only used if container_runtime=cri-o)"
 }
 
+variable "docker_version" {
+  type        = string
+  default     = ""
+  description = "Docker version to install for docker-host variant (e.g., '27.5' for latest patch, '27.5.1' for exact version). Empty string installs latest."
+}
+
 // -----------------------------------------------------------------------------
 // CNI-specific (used with k8s-node variant)
 // -----------------------------------------------------------------------------

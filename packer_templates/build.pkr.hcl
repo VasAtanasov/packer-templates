@@ -9,9 +9,9 @@ build {
   // Use all enabled sources (explicit list, or derived from primary_source)
   sources = local.enabled_sources
 
-  // ===========================================================================
+  // ==========================================================================
   // File Upload: Scripts Tree
-  // ===========================================================================
+  // ==========================================================================
   // Upload entire scripts directory once to temporary location
   provisioner "file" {
     source      = "${path.root}/scripts"
@@ -19,27 +19,27 @@ build {
     except      = local.provisioner_except
   }
 
-  // ===========================================================================
+  // ==========================================================================
   // Install Scripts to Persistent Location
-  // ===========================================================================
+  // ==========================================================================
   // Copy scripts to /usr/local/lib/scripts/ (survives reboots and /tmp cleanup)
   provisioner "shell" {
     inline = [
       "install -d -m 0755 /usr/local/lib/scripts",
       "cp -r /tmp/packer-scripts/* /usr/local/lib/scripts/",
       // Normalize CRLF to LF for all shell scripts to avoid execution issues
-      "find /usr/local/lib/scripts -type f -name '*.sh' -exec sed -i 's/\\r$//' {} +",
+      "find /usr/local/lib/scripts -type f -name '*.sh' -exec sed -i 's/\r$//' {} +",
       "chmod -R 0755 /usr/local/lib/scripts",
-      "find /usr/local/lib/scripts -type f -name '*.sh' -exec chmod 0755 {} \\;",
+      "find /usr/local/lib/scripts -type f -name '*.sh' -exec chmod 0755 {} \;",
       "chown -R root:root /usr/local/lib/scripts"
     ]
     execute_command = local.execute_command
     except          = local.provisioner_except
   }
 
-  // ===========================================================================
+  // ==========================================================================
   // System Updates and Preparation
-  // ===========================================================================
+  // ==========================================================================
   // Update packages and disable automatic updates (may reboot)
   provisioner "shell" {
     scripts = ["${path.root}/scripts/_common/update_packages.sh"]
@@ -63,9 +63,9 @@ build {
     except      = local.provisioner_except
   }
 
-  // ===========================================================================
+  // ==========================================================================
   // Base Configuration and Provider Integration
-  // ===========================================================================
+  // ==========================================================================
   // Runs common scripts (vagrant, sshd) + provider-specific guest tools
   // Guest tools script uses PACKER_BUILDER_TYPE to detect provider at runtime
   provisioner "shell" {
@@ -92,9 +92,9 @@ build {
     except      = local.provisioner_except
   }
 
-  // ===========================================================================
+  // ==========================================================================
   // OS Configuration, Variants, and Cleanup (Provider-Agnostic)
-  // ===========================================================================
+  // ==========================================================================
   provisioner "shell" {
     scripts = local.os_and_variant_scripts
     environment_vars = concat(
@@ -114,6 +114,10 @@ build {
         "CNI_CALICO_VERSION=${var.cni_calico_version}",
         "CNI_FLANNEL_VERSION=${var.cni_flannel_version}",
         "CNI_FLANNEL_PLUGIN_VERSION=${var.cni_flannel_plugin_version}",
+      ] : [],
+      # Add Docker-specific vars only for docker-host variant
+      var.variant == "docker-host" ? [
+        "DOCKER_VERSION=${var.docker_version}"
       ] : []
     )
     execute_command   = local.execute_command
@@ -122,9 +126,9 @@ build {
     except            = local.provisioner_except
   }
 
-  // ===========================================================================
+  // ==========================================================================
   // Final Minimization
-  // ===========================================================================
+  // ==========================================================================
   provisioner "shell" {
     scripts = ["${path.root}/scripts/_common/minimize.sh"]
     environment_vars = [
@@ -138,9 +142,9 @@ build {
     except            = local.provisioner_except
   }
 
-  // ===========================================================================
+  // ==========================================================================
   // Final Cleanup: Remove Build Scripts
-  // ===========================================================================
+  // ==========================================================================
   provisioner "shell" {
     inline = [
       "rm -rf /usr/local/lib/scripts"
@@ -149,9 +153,9 @@ build {
     except          = local.provisioner_except
   }
 
-  // ===========================================================================
+  // ==========================================================================
   // Post-Processor: Vagrant Box
-  // ===========================================================================
+  // ==========================================================================
   post-processor "vagrant" {
     compression_level    = 9
     output               = "${path.root}/../builds/build_complete/${local.box_name}.{{ .Provider }}.box"
