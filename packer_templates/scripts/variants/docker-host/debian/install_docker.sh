@@ -52,14 +52,61 @@ main() {
     lib::log "Updating apt cache with Docker repository..."
     lib::ensure_apt_updated
 
-    # Install Docker packages
-    lib::log "Installing Docker packages..."
-    lib::ensure_packages \
-        docker-ce \
-        docker-ce-cli \
-        containerd.io \
-        docker-buildx-plugin \
-        docker-compose-plugin
+    # Check for version pinning
+    local docker_version="${DOCKER_VERSION:-}"
+    
+    if [[ -z "$docker_version" ]]; then
+        # Install latest Docker packages
+        lib::log "Installing latest Docker packages..."
+        lib::ensure_packages \
+            docker-ce \
+            docker-ce-cli \
+            containerd.io \
+            docker-buildx-plugin \
+            docker-compose-plugin
+    else
+        # Strip leading epoch if user accidentally included it
+        docker_version="${docker_version#5:}"
+        
+        # Validate version format (major.minor or major.minor.patch)
+        if [[ ! "$docker_version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+            lib::error "Invalid DOCKER_VERSION format: ${docker_version}"
+            lib::error "Expected format: X.Y or X.Y.Z (e.g., 27.5 or 27.5.1)"
+            return 1
+        fi
+        
+        lib::log "Installing Docker ${docker_version} (specific version)..."
+        lib::log "Package version pattern: 5:${docker_version}-*"
+        
+        # Build APT version string with epoch and wildcard
+        local apt_version="5:${docker_version}-*"
+        
+        # Verify version exists in repository
+        if ! apt-cache madison docker-ce | grep -q "${docker_version}"; then
+            lib::error "Docker version ${docker_version} not found in repository"
+            lib::error "Available versions:"
+            apt-cache madison docker-ce | head -n 10
+            return 1
+        fi
+        
+        # Install specific version with wildcard pattern
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get install -y \
+            "docker-ce=${apt_version}" \
+            "docker-ce-cli=${apt_version}" \
+            "containerd.io" \
+            "docker-buildx-plugin" \
+            "docker-compose-plugin" || {
+            lib::error "Failed to install Docker ${docker_version}"
+            lib::error "Version may not exist in repository. Available versions:"
+            apt-cache madison docker-ce | head -n 10
+            return 1
+        }
+    fi
+    
+    # Hold Docker packages to prevent automatic updates
+    lib::log "Pinning Docker packages..."
+    apt-mark hold docker-ce docker-ce-cli containerd.io
 
     # Enable and start Docker service
     lib::log "Enabling Docker service..."
