@@ -99,6 +99,9 @@ endif
 		if [ "$(VARIANT)" = "k8s-node" ]; then \
 			extra_vars="$$extra_vars -var=kubernetes_version=$(K8S_VERSION) -var=cpus=2 -var=memory=4096 -var=disk_size=61440"; \
 		fi; \
+		if [ "$(VARIANT)" = "docker-host" ] && [ -n "$(DOCKER_VERSION)" ]; then \
+			extra_vars="$$extra_vars -var=docker_version=$(DOCKER_VERSION)"; \
+		fi; \
 	fi; \
 	if [ -n "$(PRIMARY_SOURCE)" ]; then \
 		extra_vars="$$extra_vars -var=primary_source=$(PRIMARY_SOURCE)"; \

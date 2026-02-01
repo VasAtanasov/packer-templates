@@ -122,6 +122,7 @@ locals {
     )
     "docker-host" = [
       "${path.root}/scripts/variants/docker-host/${local.os_family}/install_docker.sh",
+      "${path.root}/scripts/variants/docker-host/${local.os_family}/install_lazydocker.sh",
       "${path.root}/scripts/variants/docker-host/${local.os_family}/configure_docker.sh",
       "${path.root}/scripts/variants/docker-host/${local.os_family}/cleanup_docker.sh",
     ]

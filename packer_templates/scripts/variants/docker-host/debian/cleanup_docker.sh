@@ -21,6 +21,7 @@ lib::log "Removing Docker installation artifacts..."
 rm -rf /tmp/docker-install
 rm -rf /tmp/docker-compose-*
 rm -rf /tmp/containerd-*
+rm -rf /tmp/lazydocker-install
 
 lib::subheader "Cleaning package caches"
 lib::log "Cleaning APT cache..."
@@ -34,6 +35,8 @@ lib::verify_commands docker
 lib::verify_services docker
 lib::log "Verifying Docker Compose..."
 lib::verify_commands docker-compose || lib::warn "docker-compose not found (may be using docker compose v2)"
+lib::log "Verifying lazydocker..."
+lib::verify_commands lazydocker
 lib::log "Verifying Docker is functional..."
 if ! docker --version >/dev/null 2>&1; then
   lib::error "Docker binary present but not functional"

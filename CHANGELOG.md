@@ -50,6 +50,7 @@ and this project adheres to Semantic Versioning where practical.
 ### Changed
 
 - Makefile/Rakefile: build output now shows VERSION next to docker-host variant label.
+- Makefile/Rakefile: docker-host quick builds accept DOCKER_VERSION env var and pass it as docker_version.
 - Updated `AGENTS.md` to reflect removal of ARM and unsupported AlmaLinux versions.
 - Refactored monolithic `_common/lib.sh` into modular libraries: `_common/lib-core.sh` (OS-agnostic),
   `_common/lib-debian.sh` (Debian/Ubuntu APT), `_common/lib-rhel.sh` (AlmaLinux/Rocky DNF). All scripts now source

@@ -202,6 +202,7 @@ task build: :init do
   ovf_source_path = ENV['OVF_SOURCE_PATH']
   ovf_checksum = ENV['OVF_CHECKSUM']
   keep_input_artifact = ENV['KEEP_INPUT_ARTIFACT']
+  docker_version = ENV['DOCKER_VERSION']
   debug = ENV['DEBUG']
 
   unless template
@@ -219,6 +220,9 @@ task build: :init do
     extra_vars = "-var=variant=#{variant}"
     if variant == "k8s-node"
       extra_vars += " -var=kubernetes_version=#{k8s_version} -var=cpus=2 -var=memory=4096 -var=disk_size=61440"
+    end
+    if variant == "docker-host" && docker_version && !docker_version.empty?
+      extra_vars += " -var=docker_version=#{docker_version}"
     end
   end
   if primary_source && !primary_source.empty?
